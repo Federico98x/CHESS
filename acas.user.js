@@ -659,6 +659,8 @@ const boardUtils = {
                 const rank = idx + 1;
                 const cp = markingObj?.cp;
                 const mate = markingObj?.mate;
+                const depth = markingObj?.depth;
+                const ranking = markingObj?.ranking || 1;
 
                 let evalStr = '';
                 if (typeof mate === 'number') {
@@ -666,6 +668,24 @@ const boardUtils = {
                 } else if (typeof cp === 'number') {
                     const score = cp / 100;
                     evalStr = (score > 0 ? '+' : '') + score.toFixed(2);
+                }
+
+                if (proModeEnabled && evalStr && depth) {
+                    evalStr += ` (d${depth})`;
+                }
+
+                const wdl = markingObj.wdl;
+                if (proModeEnabled && wdl) {
+                    const [w, d, l] = wdl.split(' ').map(Number);
+                    const total = w + d + l;
+                    if (total > 0) {
+                        const winPct = Math.round(w / total * 100);
+                        evalStr += ` | ${winPct}%`;
+                    }
+                }
+
+                if (proModeEnabled && ranking > 1) {
+                    evalStr = `[${ranking}] ${evalStr}`;
                 }
 
                 const showOpponentMoveGuess = getConfigValue(configKeys.showOpponentMoveGuess, profile);
@@ -771,7 +791,15 @@ const boardUtils = {
                 let arrowColor = markingObj.isBlunder ? '#000000' : (markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex)));
                 
                 if (proModeEnabled) {
-                    arrowColor = '#ffff00';
+                    if (typeof mate === 'number') {
+                        arrowColor = mate > 0 ? '#00ff00' : '#ff0000';
+                    } else if (typeof cp === 'number') {
+                        if (cp >= 150) arrowColor = '#2ecc71';
+                        else if (cp >= 50) arrowColor = '#90ee90';
+                        else if (cp > -50) arrowColor = '#ffff00';
+                        else if (cp > -150) arrowColor = '#e67e22';
+                        else arrowColor = '#e74c3c';
+                    }
                 }
 
                 let arrowStyle = getArrowStyle(arrowType, arrowColor, arrowOpacity);
@@ -800,7 +828,7 @@ const boardUtils = {
                 if (proModeEnabled && evalStr) {
                     const playerEvalElem = BoardDrawer.createShape('text', to, {
                         text: evalStr,
-                        style: `fill: black; font-weight: bold; font-size: 20px; pointer-events: none;`,
+                        style: `fill: black; stroke: white; stroke-width: 1.5px; paint-order: stroke; font-weight: bold; font-size: 20px; pointer-events: none;`,
                     });
                     if (playerEvalElem) otherMarkingElems.push(playerEvalElem);
                 }
@@ -809,7 +837,7 @@ const boardUtils = {
                     const labelElem = BoardDrawer.createShape('text', to, {
                         text: markingObj.validationLoss,
                         size: 1.0,
-                        style: `fill: white; stroke: black; stroke-width: 1px; font-weight: bold; pointer-events: none; opacity: ${arrowOpacity};`,
+                        style: `fill: white; stroke: black; stroke-width: 1.5px; paint-order: stroke; font-weight: bold; pointer-events: none; opacity: ${arrowOpacity};`,
                         position: [0, 0]
                     });
                     if (labelElem) otherMarkingElems.push(labelElem);
@@ -834,7 +862,7 @@ const boardUtils = {
                     }
 
                     if (proModeEnabled) {
-                        currentOpponentArrowColorHex = '#ffff00';
+                        currentOpponentArrowColorHex = arrowColor;
                     }
 
                     oppArrowElem = BoardDrawer.createShape('arrow', [oppFrom, oppTo],
@@ -848,7 +876,7 @@ const boardUtils = {
                     if (evalStr) {
                         oppEvalElem = BoardDrawer.createShape('text', oppTo, {
                             text: evalStr,
-                            style: `fill: ${proModeEnabled ? 'black' : 'white'}; stroke: ${proModeEnabled ? 'none' : 'black'}; stroke-width: ${proModeEnabled ? '0' : '2px'}; font-size: 20px; font-weight: bold; pointer-events: none;`,
+                            style: `fill: ${proModeEnabled ? 'black' : 'white'}; stroke: ${proModeEnabled ? 'white' : 'black'}; stroke-width: 1.5px; paint-order: stroke; font-size: 20px; font-weight: bold; pointer-events: none;`,
                         });
                         if (oppEvalElem) otherMarkingElems.push(oppEvalElem);
                     }
