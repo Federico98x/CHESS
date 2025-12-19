@@ -169,6 +169,9 @@ class BackendInstance {
         
                 this.lastCalculatedFen = null;
                 this.pendingCalculations = [];
+
+                this.evalHistory = []; // {fen, cp, depth, time}
+                this.wdlData = null; // {win, draw, loss}
         
                 this.lastFen = null;
                 this.lastFeedbackFen = null;
@@ -1807,9 +1810,14 @@ class BackendInstance {
         }
 
         if(data?.wdl) {
-            const [winChance, drawChance, lossChance] = data?.wdl?.split(' ');
+            const [w, d, l] = data.wdl.split(' ').map(Number);
+            const total = w + d + l;
+            const wPct = (w / total * 100).toFixed(1);
+            const dPct = (d / total * 100).toFixed(1);
+            const lPct = (l / total * 100).toFixed(1);
 
-            updatePipData({ winChance, drawChance, lossChance });
+            this.pV[profile].wdlData = { win: wPct, draw: dPct, loss: lPct };
+            updatePipData({ wdl: this.pV[profile].wdlData });
         }
 
         if(data?.pv && isMessageForCurrentFen) {
@@ -1825,6 +1833,54 @@ class BackendInstance {
             const moveObj = { 'player': [from, to], 'opponent': [opponentFrom, opponentTo], cp, profile, ranking };
 
             this.pV[profile].pastMoveObjects.push(moveObj);
+
+            // -- Advanced Metrics Calculation --
+            // 1. Sharpness Calculation (based on MultiPV scores)
+            const latestPVs = {};
+            this.pV[profile].pastMoveObjects.forEach(pv => {
+                latestPVs[pv.ranking] = pv;
+            });
+            const scores = Object.values(latestPVs).map(pv => pv.cp).filter(s => typeof s === 'number');
+            if (scores.length > 1) {
+                const avg = scores.reduce((a, b) => a + b) / scores.length;
+                const squareDiffs = scores.map(s => Math.pow(s - avg, 2));
+                const stdDev = Math.sqrt(squareDiffs.reduce((a, b) => a + b) / scores.length);
+                // Normalize sharpness 0-100 (cap at 300cp stdDev)
+                this.pV[profile].sharpness = Math.min(100, (stdDev / 300) * 100).toFixed(1);
+            }
+
+            // 2. Stability Calculation (eval history for current FEN)
+            if (ranking === 1 && typeof cp === 'number') {
+                this.pV[profile].evalHistory.push({ fen: this.currentFen, cp, depth: data.depth, time: Date.now() });
+                // Keep only last 20 entries
+                if (this.pV[profile].evalHistory.length > 20) this.pV[profile].evalHistory.shift();
+                
+                const currentFenHistory = this.pV[profile].evalHistory.filter(h => h.fen === this.currentFen);
+                if (currentFenHistory.length > 2) {
+                    const lastEvals = currentFenHistory.slice(-5).map(h => h.cp);
+                    const evalDiff = Math.abs(lastEvals[lastEvals.length - 1] - lastEvals[0]);
+                    // Stability 0-100 (100 is most stable, 0 is very unstable/swingy)
+                    this.pV[profile].stability = Math.max(0, 100 - (evalDiff / 100) * 100).toFixed(1);
+                }
+            }
+            
+            updatePipData({ 
+                sharpness: this.pV[profile].sharpness, 
+                stability: this.pV[profile].stability 
+            });
+
+            if (this.guiBroadcastChannel) {
+                this.guiBroadcastChannel.postMessage({
+                    type: 'updateAdvancedMetrics',
+                    data: {
+                        instanceID: this.instanceID,
+                        sharpness: this.pV[profile].sharpness,
+                        stability: this.pV[profile].stability,
+                        wdl: this.pV[profile].wdlData
+                    }
+                });
+            }
+            // -- End Advanced Metrics --
 
             // Dual Engine Validation: Store intermediate PV results for the validator
             const activeValidation = this.activeValidationContext;
@@ -2533,6 +2589,28 @@ class BackendInstance {
                         <div class="eval-fill"></div>
                     </div>
                     <div class="chessground-x"></div>
+                </div>
+                <div class="advanced-eval-display">
+                    <div class="wdl-bar-container">
+                        <div class="wdl-bar">
+                            <div class="wdl-win" style="width: 33.3%"></div>
+                            <div class="wdl-draw" style="width: 33.4%"></div>
+                            <div class="wdl-loss" style="width: 33.3%"></div>
+                        </div>
+                        <div class="wdl-text">W: 0% | D: 0% | L: 0%</div>
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric-item">
+                            <div class="metric-label">Sharpness</div>
+                            <div class="metric-value sharpness-value">0%</div>
+                            <div class="metric-gauge"><div class="gauge-fill sharpness-fill" style="width: 0%"></div></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Stability</div>
+                            <div class="metric-value stability-value">100%</div>
+                            <div class="metric-gauge"><div class="gauge-fill stability-fill" style="width: 100%"></div></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="gas-container" style="display:${window?.SharedArrayBuffer ? 'none' : 'block'};">
                     <div class="gas" style="width:${instanceWidth};">

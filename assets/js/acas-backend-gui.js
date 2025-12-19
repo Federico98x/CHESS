@@ -61,7 +61,44 @@ guiBroadcastChannel.onmessage = e => {
     if (type === 'dualEngineStatus') {
         updateDualEngineStatus(data);
     }
+
+    if (type === 'updateAdvancedMetrics') {
+        updateAdvancedMetricsGUI(data);
+    }
 };
+
+function updateAdvancedMetricsGUI(data) {
+    const { instanceID, sharpness, stability, wdl } = data;
+    const instanceElem = document.querySelector(`.acas-instance[data-instance-id="${instanceID}"]`);
+    
+    if (!instanceElem) return;
+
+    if (wdl) {
+        const winElem = instanceElem.querySelector('.wdl-win');
+        const drawElem = instanceElem.querySelector('.wdl-draw');
+        const lossElem = instanceElem.querySelector('.wdl-loss');
+        const textElem = instanceElem.querySelector('.wdl-text');
+
+        if (winElem) winElem.style.width = `${wdl.win}%`;
+        if (drawElem) drawElem.style.width = `${wdl.draw}%`;
+        if (lossElem) lossElem.style.width = `${wdl.loss}%`;
+        if (textElem) textElem.innerText = `W: ${wdl.win}% | D: ${wdl.draw}% | L: ${wdl.loss}%`;
+    }
+
+    if (sharpness !== undefined) {
+        const valueElem = instanceElem.querySelector('.sharpness-value');
+        const fillElem = instanceElem.querySelector('.sharpness-fill');
+        if (valueElem) valueElem.innerText = `${sharpness}%`;
+        if (fillElem) fillElem.style.width = `${sharpness}%`;
+    }
+
+    if (stability !== undefined) {
+        const valueElem = instanceElem.querySelector('.stability-value');
+        const fillElem = instanceElem.querySelector('.stability-fill');
+        if (valueElem) valueElem.innerText = `${stability}%`;
+        if (fillElem) fillElem.style.width = `${stability}%`;
+    }
+}
 
 function updateDualEngineStatus(data) {
     const { status, details, debug, color, instanceID } = data;

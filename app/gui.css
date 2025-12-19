@@ -1597,3 +1597,75 @@ video {
     border-top: 1px solid rgba(255,255,255,0.05);
     padding-top: 5px;
 }
+
+.advanced-eval-display {
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.4);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.wdl-bar-container {
+    margin-bottom: 10px;
+}
+
+.wdl-bar {
+    display: flex;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.wdl-win { background-color: #2ecc71; transition: width 0.5s ease; }
+.wdl-draw { background-color: #95a5a6; transition: width 0.5s ease; }
+.wdl-loss { background-color: #e74c3c; transition: width 0.5s ease; }
+
+.wdl-text {
+    font-size: 11px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: "IBM Plex Sans";
+}
+
+.metrics-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.metric-item {
+    flex: 1;
+}
+
+.metric-label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.metric-value {
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    font-family: "Mona Sans";
+}
+
+.metric-gauge {
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.gauge-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 0.5s ease, background-color 0.5s ease;
+}
+
+.sharpness-fill { background-color: #f1c40f; }
+.stability-fill { background-color: #3498db; }

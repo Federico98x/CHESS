@@ -248,6 +248,23 @@ async function refreshPipView() {
     ]);
     ctxQueue.push(['fillRect', [0, pipHeaderHeight - pipStatusBarHeight, headerWidth, pipStatusBarHeight]]);
 
+    // ADVANCED METRICS (WDL BAR)
+    if (pipData.wdl) {
+        const wdlY = pipCanvas.height - 10;
+        const wdlHeight = 6;
+        const totalW = headerWidth;
+        const winW = (pipData.wdl.win / 100) * totalW;
+        const drawW = (pipData.wdl.draw / 100) * totalW;
+        const lossW = (pipData.wdl.loss / 100) * totalW;
+
+        ctxQueue.push(['fillStyle', '#2ecc71']);
+        ctxQueue.push(['fillRect', [0, wdlY, winW, wdlHeight]]);
+        ctxQueue.push(['fillStyle', '#95a5a6']);
+        ctxQueue.push(['fillRect', [winW, wdlY, drawW, wdlHeight]]);
+        ctxQueue.push(['fillStyle', '#e74c3c']);
+        ctxQueue.push(['fillRect', [winW + drawW, wdlY, lossW, wdlHeight]]);
+    }
+
     pipContextQueue.unshift(ctxQueue);
 
     if(from && to) pipLastPipFromTo = [from, to];
