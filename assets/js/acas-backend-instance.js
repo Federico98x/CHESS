@@ -1280,8 +1280,10 @@ class BackendInstance {
 
         const isHistoryIndicatingPromotion = JSON.stringify(this.moveDiffHistory) === JSON.stringify([3, 1, 2]);
 
-        if(diff > 5)
-            this.engineStartNewGame();
+        if(diff > 5) {
+            const variant = this.activeVariant || 'chess';
+            Object.keys(this.pV).forEach(p => this.engineStartNewGame(variant, p));
+        }
         
         return diff === 2 || diff > 3 || isHistoryIndicatingPromotion;
     }
@@ -1532,12 +1534,29 @@ class BackendInstance {
 
             const dualEngineValidation = await this.getConfigValue(this.configKeys.dualEngineValidation, profileName);
             if (dualEngineValidation) {
+                const primaryProfileName = await this.getConfigValue(this.configKeys.dualEnginePrimaryProfile, profileName);
+                const validatorProfileName = await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profileName);
+                
                 this.broadcastValidationStatus('active', 'Calculating...');
                 if (!this.dualEngineFENResults[currentFen]) {
                     this.dualEngineFENResults[currentFen] = {};
                 }
+                
+                // Clear any existing timeout for this instance
+                if (this.validationTimeout) clearTimeout(this.validationTimeout);
+                
+                // Set a safety timeout to clear "Calculating..." if engines hang
+                this.validationTimeout = setTimeout(() => {
+                    const results = this.dualEngineFENResults[currentFen];
+                    if (results && (!results[primaryProfileName]?.finished || !results[validatorProfileName]?.finished)) {
+                        console.warn('Dual engine validation timed out for FEN:', currentFen);
+                        this.broadcastValidationStatus('error', 'Validation Timed Out');
+                        // We don't delete results here yet, they might still arrive
+                    }
+                }, 15000); // 15 seconds timeout
+
                 // Ensure validator uses MultiPV if it's a Stockfish-like engine
-                const isValidator = profileName === await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profileName);
+                const isValidator = profileName === validatorProfileName;
                 if (isValidator) {
                     this.setEngineMultiPV(5, profileName);
                 }
@@ -1764,9 +1783,10 @@ class BackendInstance {
             if (dualEngineValidation) {
                 const validatorProfile = await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profile);
                 if (profile === validatorProfile) {
-                    if (!this.dualEngineFENResults[this.currentFen]) this.dualEngineFENResults[this.currentFen] = {};
-                    if (!this.dualEngineFENResults[this.currentFen][profile]) this.dualEngineFENResults[this.currentFen][profile] = { pvs: [] };
-                    this.dualEngineFENResults[this.currentFen][profile].pvs.push(moveObj);
+                    const calcFen = oldestUnfinishedCalcRequestObj?.fen || this.currentFen;
+                    if (!this.dualEngineFENResults[calcFen]) this.dualEngineFENResults[calcFen] = {};
+                    if (!this.dualEngineFENResults[calcFen][profile]) this.dualEngineFENResults[calcFen][profile] = { pvs: [] };
+                    this.dualEngineFENResults[calcFen][profile].pvs.push(moveObj);
                 }
             }
 
@@ -1804,76 +1824,69 @@ class BackendInstance {
             if(oldestUnfinishedCalcRequestObj)
                 oldestUnfinishedCalcRequestObj.finished = true;
 
-            // Dual Engine Validation: Logic to compare Maia and Stockfish
             const dualEngineValidation = await this.getConfigValue(this.configKeys.dualEngineValidation, profile);
             if (dualEngineValidation) {
                 const primaryProfile = await this.getConfigValue(this.configKeys.dualEnginePrimaryProfile, profile);
                 const validatorProfile = await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profile);
                 
                 if (profile === primaryProfile || profile === validatorProfile) {
-                    if (!this.dualEngineFENResults[this.currentFen]) this.dualEngineFENResults[this.currentFen] = {};
-                    this.dualEngineFENResults[this.currentFen][profile] = { 
+                    const calcFen = oldestUnfinishedCalcRequestObj?.fen || this.currentFen;
+                    if (!this.dualEngineFENResults[calcFen]) this.dualEngineFENResults[calcFen] = {};
+                    this.dualEngineFENResults[calcFen][profile] = { 
                         bestmove: data.bestmove, 
                         profile: profile,
                         finished: true 
                     };
 
-                    const primaryResult = this.dualEngineFENResults[this.currentFen][primaryProfile];
-                    const validatorResult = this.dualEngineFENResults[this.currentFen][validatorProfile];
+                    const primaryResult = this.dualEngineFENResults[calcFen][primaryProfile];
+                    const validatorResult = this.dualEngineFENResults[calcFen][validatorProfile];
 
                     if (primaryResult?.finished && validatorResult?.finished) {
-                        this.broadcastValidationStatus('active', 'Comparing Moves...');
-                        // Both engines finished for this FEN!
-                        const markingLimit = await this.getConfigValue(this.configKeys.moveSuggestionAmount, primaryProfile);
-                        let topMoveObjects = this.pV[primaryProfile].pastMoveObjects?.slice(markingLimit * -1);
-                        
-                        if(topMoveObjects?.length === 0) {
-                            topMoveObjects = [{ 'player': [primaryResult.bestmove.slice(0,2), primaryResult.bestmove.slice(2, 4)], 'opponent': [null, null], 'ranking': 1 }];
-                        } else {
-                            topMoveObjects = getUniqueMoves(topMoveObjects)?.[0];
-                        }
-
-                        // VALIDATION LOGIC
-                        const maiaMove = primaryResult.bestmove.split(' ')?.[0];
-                        const validatorPVs = this.dualEngineFENResults[this.currentFen][validatorProfile].pvs || [];
-                        const stockfishBestPV = validatorPVs.find(pv => pv.ranking === 1);
-                        const stockfishMaiaPV = validatorPVs.find(pv => {
-                            const pvMove = pv.player[0] + pv.player[1];
-                            return pvMove === maiaMove;
-                        });
-
-                        let statusColor = 'Agree';
-                        if (stockfishBestPV && stockfishMaiaPV) {
-                            const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
-                            const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
-                            const loss = stockfishBestCP - stockfishMaiaCP;
+                        if (calcFen === this.currentFen) {
+                            this.broadcastValidationStatus('active', 'Comparing Moves...');
+                            const markingLimit = await this.getConfigValue(this.configKeys.moveSuggestionAmount, primaryProfile);
+                            let topMoveObjects = this.pV[primaryProfile].pastMoveObjects?.slice(markingLimit * -1);
                             
-                            if (loss > 50) { // 0.5 loss
-                                statusColor = 'Dubious';
-                                topMoveObjects.forEach(obj => {
-                                    const objMove = obj.player[0] + obj.player[1];
-                                    if (objMove === maiaMove) {
-                                        obj.isDubious = true;
-                                    }
-                                });
+                            if(!topMoveObjects || topMoveObjects.length === 0) {
+                                topMoveObjects = [{ 'player': [primaryResult.bestmove.slice(0,2), primaryResult.bestmove.slice(2, 4)], 'opponent': [null, null], 'ranking': 1 }];
+                            } else {
+                                topMoveObjects = getUniqueMoves(topMoveObjects)?.[0];
                             }
-                        }
 
-                        this.broadcastValidationStatus('finished', statusColor === 'Agree' ? 'Engines Agree!' : 'Validator Disagrees!');
-                        this.displayMoves(topMoveObjects, primaryProfile);
-                        // Clean up old FEN results to save memory
-                        delete this.dualEngineFENResults[this.currentFen];
+                            // VALIDATION LOGIC
+                            const maiaMove = primaryResult.bestmove.split(' ')?.[0];
+                            const validatorPVs = this.dualEngineFENResults[calcFen][validatorProfile].pvs || [];
+                            const stockfishBestPV = validatorPVs.find(pv => pv.ranking === 1);
+                            const stockfishMaiaPV = validatorPVs.find(pv => {
+                                const pvMove = pv.player[0] + pv.player[1];
+                                return pvMove === maiaMove;
+                            });
+
+                            let statusColor = 'Agree';
+                            if (stockfishBestPV && stockfishMaiaPV) {
+                                const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
+                                const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
+                                const loss = stockfishBestCP - stockfishMaiaCP;
+                                
+                                if (loss > 50) {
+                                    statusColor = 'Dubious';
+                                    topMoveObjects.forEach(obj => {
+                                        const objMove = obj.player[0] + obj.player[1];
+                                        if (objMove === maiaMove) obj.isDubious = true;
+                                    });
+                                }
+                            }
+
+                            this.broadcastValidationStatus('finished', statusColor === 'Agree' ? 'Engines Agree!' : 'Validator Disagrees!');
+                            this.displayMoves(topMoveObjects, primaryProfile);
+                        }
+                        delete this.dualEngineFENResults[calcFen];
                     }
-                    // If validation is ON, we RETURN here for both primary and validator to avoid default displayMoves
                     return;
                 }
             }
 
-            // Check if the board has changed while we were finishing up a move calculation.
             if(oldestUnfinishedCalcRequestObj?.fen !== this.currentFen) {
-                // Let's start the new move calculation since we have now received the old 'bestmove'.
-                // A.C.A.S expects 'bestmove' to appear to finish up the calculation which is why we do this.
-                // (Starting a new best move calculation while the old one was running, there would be no 'bestmove')
                 this.calculateBestMoves(this.currentFen);
             }
 
