@@ -386,7 +386,8 @@ class BackendInstance {
                     if (typeof mate === 'number') {
                         evalStr = 'M' + mate;
                     } else if (typeof cp === 'number') {
-                        evalStr = (cp / 100).toFixed(2);
+                        const score = cp / 100;
+                        evalStr = (score > 0 ? '+' : '') + score.toFixed(2);
                     }
 
                     if(onlySuggestPieces && !movesOnDemand) {
@@ -508,7 +509,7 @@ class BackendInstance {
                         if (proModeEnabled && evalStr) {
                             playerEvalElem = BoardDrawer.createShape('text', to, {
                                 text: evalStr,
-                                style: `fill: black; font-weight: bold; font-size: 20px; pointer-events: none;`,
+                                style: `fill: black; font-size: 20px; font-weight: bold; pointer-events: none;`,
                             });
                         }
             
@@ -568,6 +569,10 @@ class BackendInstance {
                             // move best arrow element on top (multiple same moves can hide the best move)
                             parentElem.appendChild(playerArrowElem);
             
+                            if(playerEvalElem) {
+                                parentElem.appendChild(playerEvalElem);
+                            }
+
                             if(oppArrowElem) {
                                 parentElem.appendChild(oppArrowElem);
                             }
@@ -578,7 +583,7 @@ class BackendInstance {
                         }
     
                         this.pV[profile].activeGuiMoveMarkings.push(
-                            { ...markingObj, playerArrowElem, oppArrowElem, oppEvalElem }
+                            { ...markingObj, playerArrowElem, playerEvalElem, oppArrowElem, oppEvalElem }
                         );
                     }
                 });
@@ -593,6 +598,7 @@ class BackendInstance {
                         t.BoardDrawer?.removeShape(markingObj.oppArrowElem);
                         t.BoardDrawer?.removeShape(markingObj.oppEvalElem);
                         t.BoardDrawer?.removeShape(markingObj.playerArrowElem);
+                        t.BoardDrawer?.removeShape(markingObj.playerEvalElem);
                         markingObj?.otherElems?.forEach(x => t.BoardDrawer?.removeShape(x));
                     });
     
