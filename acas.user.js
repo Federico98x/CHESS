@@ -409,7 +409,6 @@ const configKeys = {
     'renderOnExternalSite': 'renderOnExternalSite',
     'feedbackOnExternalSite': 'feedbackOnExternalSite',
     'moveAsFilledSquares': 'moveAsFilledSquares',
-    'proModeEnabled': 'proModeEnabled',
     'movesOnDemand': 'movesOnDemand',
     'onlySuggestPieces': 'onlySuggestPieces'
 };
@@ -480,8 +479,6 @@ function getArrowStyle(type, fill, opacity) {
             return getBaseStyleModification('orange', 0.8);
         case 'disagree':
             return getBaseStyleModification('red', 0.8);
-        case 'blunder':
-            return getBaseStyleModification('black', 1.0);
         case 'validator':
             return getBaseStyleModification('#f1c40f', 0.7);
         case 'secondary':
@@ -635,12 +632,6 @@ function displayFeedback(addedFeedback) {
 
 const boardUtils = {
     markMoves: moveObjArr => { // needs refactoring but too lazy for now
-        if(!BoardDrawer) {
-            if(debugModeActivated) console.warn('BoardDrawer not initialized, trying to initialize...');
-            if(chessBoardElem) start();
-            return;
-        }
-
         const maxScale = 1;
         const minScale = 0.5;
         const totalRanks = moveObjArr.length;
@@ -656,52 +647,22 @@ const boardUtils = {
 
         const markedSquares = { 0: [], 1: [] };
 
-            moveObjArr.forEach((markingObj, idx) => {
-                const profile = markingObj.profile;
+        moveObjArr.forEach((markingObj, idx) => {
+            const profile = markingObj.profile;
 
-                const [from, to] = markingObj.player;
-                const [oppFrom, oppTo] = markingObj.opponent;
-                const oppMovesExist = oppFrom && oppTo;
-                const rank = idx + 1;
-                const cp = markingObj?.cp;
-                const mate = markingObj?.mate;
-                const depth = markingObj?.depth;
-                const ranking = markingObj?.ranking || 1;
+            const [from, to] = markingObj.player;
+            const [oppFrom, oppTo] = markingObj.opponent;
+            const oppMovesExist = oppFrom && oppTo;
+            const rank = idx + 1;
+            const cp = markingObj?.cp;
 
-                let evalStr = '';
-                if (typeof mate === 'number') {
-                    evalStr = 'M' + mate;
-                } else if (typeof cp === 'number') {
-                    const score = cp / 100;
-                    evalStr = (score > 0 ? '+' : '') + score.toFixed(2);
-                }
-
-                if (proModeEnabled && evalStr && depth) {
-                    evalStr += ` (d${depth})`;
-                }
-
-                const wdl = markingObj.wdl;
-                if (proModeEnabled && wdl) {
-                    const [w, d, l] = wdl.split(' ').map(Number);
-                    const total = w + d + l;
-                    if (total > 0) {
-                        const winPct = Math.round(w / total * 100);
-                        evalStr += ` | ${winPct}%`;
-                    }
-                }
-
-                if (proModeEnabled && ranking > 1) {
-                    evalStr = `[${ranking}] ${evalStr}`;
-                }
-
-                const showOpponentMoveGuess = getConfigValue(configKeys.showOpponentMoveGuess, profile);
+            const showOpponentMoveGuess = getConfigValue(configKeys.showOpponentMoveGuess, profile);
             const showOpponentMoveGuessConstantly = getConfigValue(configKeys.showOpponentMoveGuessConstantly, profile);
             const arrowOpacity = getConfigValue(configKeys.arrowOpacity, profile) / 100;
             const primaryArrowColorHex = getConfigValue(configKeys.primaryArrowColorHex, profile);
             const secondaryArrowColorHex = getConfigValue(configKeys.secondaryArrowColorHex, profile);
             const opponentArrowColorHex = getConfigValue(configKeys.opponentArrowColorHex, profile);
             const dubiousArrowColorHex = getConfigValue(configKeys.dubiousArrowColorHex, profile);
-            const proModeEnabled = getConfigValue(configKeys.proModeEnabled, profile);
             const moveAsFilledSquares = getConfigValue(configKeys.moveAsFilledSquares, profile);
             const onlySuggestPieces = getConfigValue(configKeys.onlySuggestPieces, profile);
             const movesOnDemand = getConfigValue(configKeys.movesOnDemand, profile);
@@ -793,21 +754,8 @@ const boardUtils = {
                 let playerArrowElem = null;
                 let oppArrowElem = null;
                 let validatorArrowElem = null;
-                let arrowType = markingObj.isBlunder ? 'blunder' : (markingObj.isDisagree ? 'disagree' : (markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary')));
-                let arrowColor = markingObj.isBlunder ? '#000000' : (markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex)));
-                
-                if (proModeEnabled) {
-                    if (typeof mate === 'number') {
-                        arrowColor = mate > 0 ? '#00ff00' : '#ff0000';
-                    } else if (typeof cp === 'number') {
-                        if (cp >= 150) arrowColor = '#2ecc71';
-                        else if (cp >= 50) arrowColor = '#90ee90';
-                        else if (cp > -50) arrowColor = '#ffff00';
-                        else if (cp > -150) arrowColor = '#e67e22';
-                        else arrowColor = '#e74c3c';
-                    }
-                }
-
+                let arrowType = markingObj.isDisagree ? 'disagree' : (markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary'));
+                let arrowColor = markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex));
                 let arrowStyle = getArrowStyle(arrowType, arrowColor, arrowOpacity);
                 let lineWidth = 30;
                 let arrowheadWidth = 80;
@@ -831,19 +779,11 @@ const boardUtils = {
 
                 const otherMarkingElems = [];
 
-                if (proModeEnabled && evalStr) {
-                    const playerEvalElem = BoardDrawer.createShape('text', to, {
-                        text: evalStr,
-                        style: `fill: black; stroke: white; stroke-width: 1.5px; paint-order: stroke; font-weight: bold; font-size: 20px; pointer-events: none;`,
-                    });
-                    if (playerEvalElem) otherMarkingElems.push(playerEvalElem);
-                }
-
                 if (markingObj.validationLoss) {
                     const labelElem = BoardDrawer.createShape('text', to, {
                         text: markingObj.validationLoss,
                         size: 1.0,
-                        style: `fill: white; stroke: black; stroke-width: 1.5px; paint-order: stroke; font-weight: bold; pointer-events: none; opacity: ${arrowOpacity};`,
+                        style: `fill: white; stroke: black; stroke-width: 1px; font-weight: bold; pointer-events: none; opacity: ${arrowOpacity};`,
                         position: [0, 0]
                     });
                     if (labelElem) otherMarkingElems.push(labelElem);
@@ -862,37 +802,17 @@ const boardUtils = {
                 }
 
                 if(oppMovesExist && showOpponentMoveGuess) {
-                    let currentOpponentArrowColorHex = opponentArrowColorHex;
-                    if (typeof cp === 'number' && cp <= -200) {
-                        currentOpponentArrowColorHex = '#000000';
-                    }
-
-                    if (proModeEnabled) {
-                        currentOpponentArrowColorHex = arrowColor;
-                    }
-
                     oppArrowElem = BoardDrawer.createShape('arrow', [oppFrom, oppTo],
                         {
-                            style: getArrowStyle('opponent', currentOpponentArrowColorHex, arrowOpacity),
+                            style: getArrowStyle('opponent', opponentArrowColorHex, arrowOpacity),
                             lineWidth, arrowheadWidth, arrowheadHeight, startOffset
                         }
                     );
 
-                    let oppEvalElem = null;
-                    if (evalStr) {
-                        oppEvalElem = BoardDrawer.createShape('text', oppTo, {
-                            text: evalStr,
-                            style: `fill: ${proModeEnabled ? 'black' : 'white'}; stroke: ${proModeEnabled ? 'white' : 'black'}; stroke-width: 1.5px; paint-order: stroke; font-size: 20px; font-weight: bold; pointer-events: none;`,
-                        });
-                        if (oppEvalElem) otherMarkingElems.push(oppEvalElem);
-                    }
-
                     if(showOpponentMoveGuessConstantly) {
                         oppArrowElem.style.display = 'block';
-                        if (oppEvalElem) oppEvalElem.style.display = 'block';
                     } else {
                         oppArrowElem.style.display = 'none';
-                        if (oppEvalElem) oppEvalElem.style.display = 'none';
 
                         const squareListener = BoardDrawer.addSquareListener(from, type => {
                             if(!oppArrowElem) {
@@ -902,11 +822,9 @@ const boardUtils = {
                             switch(type) {
                                 case 'enter':
                                     oppArrowElem.style.display = 'inherit';
-                                    if (oppEvalElem) oppEvalElem.style.display = 'inherit';
                                     break;
                                 case 'leave':
                                     oppArrowElem.style.display = 'none';
-                                    if (oppEvalElem) oppEvalElem.style.display = 'none';
                                     break;
                             }
                         });
@@ -1964,7 +1882,7 @@ function isBoardDrawerNeeded() {
         }
     }
 
-    return !isRunningOnBackend();
+    return false;
 }
 
 function getConfigValue(key, profile) {
@@ -2364,7 +2282,7 @@ addSupportedChessSite('chess.com', {
             return document.querySelector('.TheBoard-layers');
         }
 
-        return document.querySelector('#board-layout-chessboard > .board, wc-chess-board, chess-board, .board, [id*="board"], [class*="board"]');
+        return document.querySelector('#board-layout-chessboard > .board');
     },
 
     'pieceElem': obj => {
@@ -2384,7 +2302,7 @@ addSupportedChessSite('chess.com', {
             return getAll ? filteredPieceElems : filteredPieceElems[0];
         }
 
-        return obj.boardQuerySelector('.piece, .piece-element, piece, [class*="piece"], [id*="piece"]');
+        return obj.boardQuerySelector('.piece');
     },
 
     'squareElems': obj => {
@@ -3406,16 +3324,7 @@ addSupportedChessSite('redhotpawn.com', {
 
 addSupportedChessSite('simplechess.com', {
     'boardElem': obj => {
-        return document.querySelector('chess-board') 
-            || document.querySelector('wc-chess-board')
-            || document.getElementById('board-layout-main')
-            || document.getElementById('board-layout-ad')
-            || document.querySelector('.board');
-    },
-
-    'pieceElem': obj => {
-        return obj.boardQuerySelector('.piece') 
-            || obj.boardQuerySelector('.piece-element');
+        return document.querySelector('#chessboard');
     },
 
     'pieceElem': obj => {
@@ -3631,7 +3540,7 @@ async function start() {
             'window': window,
             'boardDimensions': getBoardDimensions(),
             'playerColor': getPlayerColorVariable(),
-            'zIndex': 999999999,
+            'zIndex': domain === 'worldchess.com' ? 9999 : 500,
             'prepend': true,
             'debugMode': debugModeActivated,
             'adjustSizeByDimensions': adjustSizeByDimensions ? true : false,
@@ -3640,11 +3549,6 @@ async function start() {
             },
             'ignoreBodyRectLeft': ignoreBodyRectLeft
         });
-
-        if (BoardDrawer.boardContainerElem) {
-            BoardDrawer.boardContainerElem.style.visibility = 'visible';
-            BoardDrawer.boardContainerElem.style.display = 'block';
-        }
 
         const waitForBoardMatrix = setInterval(() => {
             if(lastBoardMatrix) {
