@@ -220,10 +220,22 @@ class BackendInstance {
     async loadEngines() {
         const profiles = await getProfiles();
         const activeProfiles = profiles.filter(p => p.config.engineEnabled);
+        const profilesToLoad = new Set(activeProfiles.map(p => p.name));
 
-        for (const profileObj of activeProfiles) {
-            this.pV[profileObj.name] = await this.profileVariables.create(this, profileObj);
-            this.loadEngine(profileObj.name);
+        // Ensure validator profiles are also loaded
+        for (const profile of activeProfiles) {
+            const dualEngineValidation = await this.getConfigValue(this.configKeys.dualEngineValidation, profile.name);
+            if (dualEngineValidation) {
+                const validatorProfile = await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profile.name);
+                if (validatorProfile) {
+                    profilesToLoad.add(validatorProfile);
+                }
+            }
+        }
+
+        for (const profileName of profilesToLoad) {
+            this.pV[profileName] = await this.profileVariables.create(this, profileName);
+            this.loadEngine(profileName);
 
             //setIntervalAsync(async () => await this.enforceMoveSuggestions(profileObj.name), 2000);
         }
@@ -1450,15 +1462,28 @@ class BackendInstance {
 
         if(specificMovesObj) skipValidityChecks = true;
 
-        profiles.filter(p => shouldCalculate(p)).forEach(async (profile) => {
-            const profileName = profile.name;
+        const profilesToCalculate = new Set();
+        for (const profile of profiles) {
+            if (shouldCalculate(profile)) {
+                profilesToCalculate.add(profile.name);
+                const dualEngineValidation = await this.getConfigValue(this.configKeys.dualEngineValidation, profile.name);
+                if (dualEngineValidation) {
+                    const validatorProfileName = await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profile.name);
+                    if (validatorProfileName) {
+                        profilesToCalculate.add(validatorProfileName);
+                    }
+                }
+            }
+        }
+
+        for (const profileName of profilesToCalculate) {
             const currentEngineName = await this.getEngineType(profileName);
 
-            if(this.isPawnOnPromotionSquare(currentFen) && currentEngineName === 'lc0') return;
+            if(this.isPawnOnPromotionSquare(currentFen) && currentEngineName === 'lc0') continue;
             // Engine is still calculating, do not start any new calculation since,
             // that will not give us 'bestmove' which A.C.A.S' logic EXPECTS.
             // The best moves will be calculated after we get the 'bestmove'.
-            if(!this.isEngineNotCalculating(profileName)) return;
+            if(!this.isEngineNotCalculating(profileName)) continue;
 
             const isFenChangeLogical = this.isFenChangeLogical(this.pV[profileName].lastFen, currentFen);
             const reverseSide = await this.getConfigValue(this.configKeys.reverseSide, profileName);
@@ -1482,7 +1507,7 @@ class BackendInstance {
             
             if((isFenChanged && isFenChangeAllowed) || skipValidityChecks) {
                 this.pV[profileName].lastCalculatedFen = currentFen;
-            } else return;
+            } else continue;
 
             this.pV[profileName].pendingCalculations.push({ 'fen': currentFen, 'startedAt': Date.now(), 'finished': false });
 
@@ -1551,7 +1576,7 @@ class BackendInstance {
                     }
                 }, movetime + 5);
             }
-        });
+        }
     }
 
     getEngineAcasObj(i) {
@@ -1796,16 +1821,23 @@ class BackendInstance {
                         }
 
                         // VALIDATION LOGIC
-                        const maiaMove = primaryResult.bestmove.slice(0, 4);
+                        const maiaMove = primaryResult.bestmove.split(' ')?.[0];
                         const validatorPVs = this.dualEngineFENResults[this.currentFen][validatorProfile].pvs || [];
                         const stockfishBestPV = validatorPVs.find(pv => pv.ranking === 1);
-                        const stockfishMaiaPV = validatorPVs.find(pv => pv.player[0] + pv.player[1] === maiaMove);
+                        const stockfishMaiaPV = validatorPVs.find(pv => {
+                            const pvMove = pv.player[0] + pv.player[1];
+                            return pvMove === maiaMove;
+                        });
 
                         if (stockfishBestPV && stockfishMaiaPV) {
-                            const loss = stockfishBestPV.cp - stockfishMaiaPV.cp;
+                            const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
+                            const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
+                            const loss = stockfishBestCP - stockfishMaiaCP;
+                            
                             if (loss > 50) { // 0.5 loss
                                 topMoveObjects.forEach(obj => {
-                                    if (obj.player[0] + obj.player[1] === maiaMove) {
+                                    const objMove = obj.player[0] + obj.player[1];
+                                    if (objMove === maiaMove) {
                                         obj.isDubious = true;
                                     }
                                 });
