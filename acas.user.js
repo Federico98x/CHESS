@@ -782,9 +782,9 @@ const boardUtils = {
                 if (markingObj.validationLoss) {
                     const labelElem = BoardDrawer.createShape('text', to, {
                         text: markingObj.validationLoss,
-                        size: 1.2,
-                        style: `fill: white; stroke: black; stroke-width: 1px; font-weight: bold; opacity: ${arrowOpacity};`,
-                        position: [0, -0.6]
+                        size: 1.0,
+                        style: `fill: white; stroke: black; stroke-width: 1px; font-weight: bold; pointer-events: none; opacity: ${arrowOpacity};`,
+                        position: [0, 0]
                     });
                     if (labelElem) otherMarkingElems.push(labelElem);
                 }

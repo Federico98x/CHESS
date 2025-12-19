@@ -1838,12 +1838,14 @@ class BackendInstance {
                 isSearchInfinite = this.pV[profile].engineNodes > 9e6 ? true : false;
             }
 
+            const isDualEngineActive = this.activeValidationContext && (profile === this.activeValidationContext.primary || profile === this.activeValidationContext.validator);
+
             if(
                 markingLimit !== 0
                 && topMoveObjects.length === (markingLimit - removedDuplicateMoveAmount)
                 && (!onlyShowTopMoves || (isSearchInfinite && !isMovetimeLimited)) // handle infinite search, cannot only show top moves when search is infinite
                 && (!isDelayActive || (calculationTimeElapsed > moveDisplayDelay)) // handle visual delay, do not show move if time elapsed is too low
-                && !dualEngineValidation // Do not display intermediate moves in dual engine mode to avoid flickering
+                && !isDualEngineActive // Do not display intermediate moves in dual engine mode to avoid flickering
             ) {
                 this.displayMoves(topMoveObjects, profile);
             }
@@ -1860,11 +1862,13 @@ class BackendInstance {
                 const calcFen = oldestUnfinishedCalcRequestObj?.fen || this.currentFen;
 
                 if (!this.dualEngineFENResults[calcFen]) this.dualEngineFENResults[calcFen] = {};
-                this.dualEngineFENResults[calcFen][profile] = { 
+                if (!this.dualEngineFENResults[calcFen][profile]) this.dualEngineFENResults[calcFen][profile] = { pvs: [] };
+                
+                Object.assign(this.dualEngineFENResults[calcFen][profile], { 
                     bestmove: data.bestmove, 
                     profile: profile,
                     finished: true 
-                };
+                });
 
                 const primaryResult = this.dualEngineFENResults[calcFen][primaryProfile];
                 const validatorResult = this.dualEngineFENResults[calcFen][validatorProfile];
@@ -1890,8 +1894,15 @@ class BackendInstance {
                         const maiaMove = primaryResult.bestmove.split(' ')?.[0];
                         const stockfishMove = validatorResult.bestmove.split(' ')?.[0];
                         const validatorPVs = this.dualEngineFENResults[calcFen][validatorProfile].pvs || [];
-                        const stockfishBestPV = validatorPVs.find(pv => pv.ranking === 1);
-                        const stockfishMaiaPV = validatorPVs.find(pv => {
+                        
+                        // Get the latest PV for each ranking to ensure we have the deepest evaluation
+                        const latestValidatorPVs = {};
+                        validatorPVs.forEach(pv => {
+                            latestValidatorPVs[pv.ranking] = pv;
+                        });
+
+                        const stockfishBestPV = latestValidatorPVs[1];
+                        const stockfishMaiaPV = Object.values(latestValidatorPVs).find(pv => {
                             const pvMove = pv.player[0] + pv.player[1];
                             return pvMove === maiaMove;
                         });
@@ -1902,9 +1913,14 @@ class BackendInstance {
 
                         if (maiaMove !== stockfishMove) {
                             if (stockfishBestPV && stockfishMaiaPV) {
-                                const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
-                                const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
-                                const loss = stockfishBestCP - stockfishMaiaCP;
+                                const getEvalScore = (pv) => {
+                                    if (typeof pv.mate === 'number') return pv.mate > 0 ? 10000 - pv.mate : -10000 + pv.mate;
+                                    return typeof pv.cp === 'number' ? pv.cp : 0;
+                                };
+
+                                const stockfishBestScore = getEvalScore(stockfishBestPV);
+                                const stockfishMaiaScore = getEvalScore(stockfishMaiaPV);
+                                const loss = stockfishBestScore - stockfishMaiaScore;
                                 lossText = (loss / -100).toFixed(1);
                                 
                                 if (loss <= 50) {
@@ -1917,6 +1933,11 @@ class BackendInstance {
                                     statusColor = 'Disagree';
                                     debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Loss: ${loss}cp)`;
                                 }
+                            } else if (stockfishBestPV) {
+                                // Maia's move not found in Stockfish's top PVs, assume it's bad
+                                statusColor = 'Disagree';
+                                debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Maia move not in top)`;
+                                lossText = "<-1.0";
                             } else {
                                 statusColor = 'Disagree';
                                 debugInfo = `Primary: ${maiaMove} | Validator prefers: ${stockfishMove}`;
