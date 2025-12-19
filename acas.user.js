@@ -43,6 +43,8 @@
 // @supportURL  https://github.com/Psyyke/A.C.A.S/tree/main#why-doesnt-it-work
 // @match       https://psyyke.github.io/A.C.A.S/*
 // @match       http://localhost:*/*
+// @match       http://127.0.0.1:*/*
+// @match       http://[::1]:*/*
 // @match       https://www.chess.com/*
 // @match       https://lichess.org/*
 // @match       https://playstrategy.org/*
@@ -136,7 +138,7 @@ function constructBackendURL(host) {
     const protocol = window.location.protocol + '//';
     const hosts = backendConfig.hosts;
 
-    const isLocalhost = host?.includes('localhost') || host?.includes('127.0.0.1');
+    const isLocalhost = host?.includes('localhost') || host?.includes('127.0.0.1') || host?.includes('[::1]');
     const path = isLocalhost ? '/' : backendConfig.path;
 
     return protocol + (host || (hosts?.prod || hosts?.path)) + path;
@@ -145,11 +147,22 @@ function constructBackendURL(host) {
 function isRunningOnBackend(skipGM) {
     const hostsArr = Object.values(backendConfig.hosts);
 
-    const isLocalhost = window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1';
+    const isLocalhost = window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1' || window?.location?.hostname === '[::1]';
     const foundHost = hostsArr.find(host => host === window?.location?.host || (isLocalhost && host === 'localhost'));
     const isCorrectPath = window?.location?.pathname?.includes(backendConfig.path) || isLocalhost;
 
     const isBackend = typeof foundHost === 'string' && isCorrectPath;
+
+    if (debugModeActivated) {
+        console.log('A.C.A.S Debug:', {
+            isLocalhost,
+            foundHost,
+            isCorrectPath,
+            isBackend,
+            host: window?.location?.host,
+            pathname: window?.location?.pathname
+        });
+    }
 
     if(isBackend && !skipGM)
         GM_setValue(currentBackendUrlKey, constructBackendURL(window?.location?.host));
@@ -158,7 +171,7 @@ function isRunningOnBackend(skipGM) {
 }
 
 // KEEP THESE AS FALSE ON PRODUCTION
-const debugModeActivated = false;
+const debugModeActivated = true;
 const onlyUseDevelopmentBackend = false;
 
 const domain = window.location.hostname.replace('www.', '');
@@ -272,7 +285,7 @@ function exposeViaMessages() {
     const script = document.createElement('script');
     script.innerHTML = 'window.isUserscriptActive = true;';
 
-    document.head.appendChild(script);
+    (document.head || document.documentElement).appendChild(script);
 }
 
 function exposeViaUnsafe() {

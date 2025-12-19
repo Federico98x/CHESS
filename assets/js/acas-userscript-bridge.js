@@ -66,6 +66,7 @@ if(typeof window?.USERSCRIPT !== 'object') {
             }, '*');
         }
     };
+    window.isUserscriptActive = true;
 } else {
     window.isUserscriptActive = true;
 }
