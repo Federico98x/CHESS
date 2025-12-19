@@ -3406,7 +3406,16 @@ addSupportedChessSite('redhotpawn.com', {
 
 addSupportedChessSite('simplechess.com', {
     'boardElem': obj => {
-        return document.querySelector('#chessboard');
+        return document.querySelector('chess-board') 
+            || document.querySelector('wc-chess-board')
+            || document.getElementById('board-layout-main')
+            || document.getElementById('board-layout-ad')
+            || document.querySelector('.board');
+    },
+
+    'pieceElem': obj => {
+        return obj.boardQuerySelector('.piece') 
+            || obj.boardQuerySelector('.piece-element');
     },
 
     'pieceElem': obj => {
