@@ -476,16 +476,17 @@ class BackendInstance {
                         let arrowColor = markingObj.isBlunder ? '#000000' : (markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex)));
                         let arrowStyle = this.getArrowStyle(arrowType, arrowColor, arrowOpacity);
                         let lineWidth = 30;
+                        let arrowheadWidth = 80;
+                        let arrowheadHeight = 60;
+                        let startOffset = 30;
             
-                            const arrowScale = totalRanks === 2
-                                ? 0.75
-                                : maxScale - (maxScale - minScale) * ((rank - 1) / (totalRanks - 1));
+                        const arrowScale = totalRanks === 2
+                            ? 0.75
+                            : maxScale - (maxScale - minScale) * ((rank - 1) / (totalRanks - 1));
             
-                            lineWidth = lineWidth * arrowScale;
-                            arrowheadWidth = arrowheadWidth * arrowScale;
-                            arrowheadHeight = arrowheadHeight * arrowScale;
-                            startOffset = startOffset;
-                        }
+                        lineWidth = lineWidth * arrowScale;
+                        arrowheadWidth = arrowheadWidth * arrowScale;
+                        arrowheadHeight = arrowheadHeight * arrowScale;
                         
                         playerArrowElem = BoardDrawer.createShape('arrow', [from, to],
                             {
