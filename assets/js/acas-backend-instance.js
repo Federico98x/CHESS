@@ -72,6 +72,23 @@ class BackendInstance {
         this.getConfigValue = async (key, profile) => {
             return await this.config[key]?.get(profile);
         }
+
+        this.broadcastValidationStatus = (status, text) => {
+            if (this.guiBroadcastChannel) {
+                this.guiBroadcastChannel.postMessage({ 
+                    'type': 'updateValidationStatus', 
+                    'data': { 
+                        'instanceID': this.instanceID,
+                        'status': status, 
+                        'text': text 
+                    } 
+                });
+            }
+        };
+
+        this.setEngineMultiPV = (value, profile) => {
+            this.sendMsgToEngine(`setoption name MultiPV value ${value}`, profile);
+        };
     
         // Not in use
         this.setConfigValue = (key, val, profile) => {

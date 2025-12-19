@@ -38,6 +38,27 @@ const userscriptInfoElem = document.querySelector('#userscript-info-small');
 
 const updateYourUserscriptElem = document.querySelector('#update-your-userscript-notification');
 
+const guiBroadcastChannel = new BroadcastChannel('acas-gui-channel');
+
+guiBroadcastChannel.onmessage = e => {
+    const { type, data } = e.data;
+
+    if (type === 'updateValidationStatus') {
+        const { instanceID, status, text } = data;
+        const statusElem = document.querySelector(`.acas-instance[data-instance-id="${instanceID}"] .validation-status-text`);
+        const dotElem = document.querySelector(`.acas-instance[data-instance-id="${instanceID}"] .validation-status-dot`);
+        
+        if (statusElem) statusElem.innerText = text;
+        if (dotElem) {
+            dotElem.className = 'validation-status-dot ' + status;
+        }
+    }
+    
+    if (type === 'updateChessVariants') {
+        // ... handled elsewhere or can be added here
+    }
+};
+
 const instanceSizeChangeContainerElem = document.querySelector('#instance-size-change-container');
 const decreaseInstanceSizeBtn = document.querySelector('#decrease-instance-size-btn');
 const increaseInstanceSizeBtn = document.querySelector('#increase-instance-size-btn');
