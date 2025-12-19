@@ -73,7 +73,7 @@ class BackendInstance {
             return await this.config[key]?.get(profile);
         }
 
-        this.broadcastValidationStatus = (status, text) => {
+        this.broadcastInstanceStatus = (status, text) => {
             if (this.guiBroadcastChannel) {
                 this.guiBroadcastChannel.postMessage({ 
                     'type': 'updateValidationStatus', 
@@ -101,7 +101,7 @@ class BackendInstance {
         this.domain = domain;
         this.instanceID = instanceID;
         this.chessVariant = chessVariant;
-        this.guiBroadcastChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('acas-gui') : null;
+        this.guiBroadcastChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('acas-gui-channel') : null;
 
         this.onLoadCallbackFunction = onLoadCallbackFunction;
 
@@ -1475,15 +1475,18 @@ class BackendInstance {
         }
     }
 
-    broadcastValidationStatus(status, details) {
-        this.guiBroadcastChannel.postMessage({
-            type: 'dualEngineStatus',
-            data: {
-                status,
-                details,
-                instanceID: this.instanceID
-            }
-        });
+    broadcastValidationStatus(status, details, debug) {
+        if (this.guiBroadcastChannel) {
+            this.guiBroadcastChannel.postMessage({
+                type: 'dualEngineStatus',
+                data: {
+                    status,
+                    details,
+                    debug,
+                    instanceID: this.instanceID
+                }
+            });
+        }
     }
 
     async calculateBestMoves(currentFen, skipValidityChecks, specificMovesObj) {
@@ -1556,7 +1559,7 @@ class BackendInstance {
                 const primaryProfileName = await this.getConfigValue(this.configKeys.dualEnginePrimaryProfile, profileName);
                 const validatorProfileName = await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profileName);
                 
-                this.broadcastValidationStatus('active', 'Calculating...');
+                this.broadcastValidationStatus('active', 'Calculating...', `Primary: ${primaryProfileName} | Validator: ${validatorProfileName}`);
                 if (!this.dualEngineFENResults[currentFen]) {
                     this.dualEngineFENResults[currentFen] = {};
                 }
@@ -1860,6 +1863,11 @@ class BackendInstance {
                     const primaryResult = this.dualEngineFENResults[calcFen][primaryProfile];
                     const validatorResult = this.dualEngineFENResults[calcFen][validatorProfile];
 
+                    if (!primaryResult?.finished || !validatorResult?.finished) {
+                        const finishedProfile = profile === primaryProfile ? 'Primary' : 'Validator';
+                        this.broadcastValidationStatus('active', 'Calculating...', `${finishedProfile} engine finished. Waiting for the other...`);
+                    }
+
                     if (primaryResult?.finished && validatorResult?.finished) {
                         if (calcFen === this.currentFen) {
                             this.broadcastValidationStatus('active', 'Comparing Moves...');
@@ -1881,22 +1889,25 @@ class BackendInstance {
                                 return pvMove === maiaMove;
                             });
 
-                            let statusColor = 'Agree';
-                            if (stockfishBestPV && stockfishMaiaPV) {
-                                const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
-                                const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
-                                const loss = stockfishBestCP - stockfishMaiaCP;
-                                
-                                if (loss > 50) {
-                                    statusColor = 'Dubious';
-                                    topMoveObjects.forEach(obj => {
-                                        const objMove = obj.player[0] + obj.player[1];
-                                        if (objMove === maiaMove) obj.isDubious = true;
-                                    });
-                                }
-                            }
+                                let statusColor = 'Agree';
+                                let debugInfo = `Primary: ${maiaMove} | Validator: Agree`;
 
-                            this.broadcastValidationStatus('finished', statusColor === 'Agree' ? 'Engines Agree!' : 'Validator Disagrees!');
+                                if (stockfishBestPV && stockfishMaiaPV) {
+                                    const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
+                                    const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
+                                    const loss = stockfishBestCP - stockfishMaiaCP;
+                                    
+                                    if (loss > 50) {
+                                        statusColor = 'Dubious';
+                                        debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishBestPV.player[0]}${stockfishBestPV.player[1]} (Loss: ${loss}cp)`;
+                                        topMoveObjects.forEach(obj => {
+                                            const objMove = obj.player[0] + obj.player[1];
+                                            if (objMove === maiaMove) obj.isDubious = true;
+                                        });
+                                    }
+                                }
+
+                                this.broadcastValidationStatus('finished', statusColor === 'Agree' ? 'Engines Agree!' : 'Validator Disagrees!', debugInfo);
                             this.displayMoves(topMoveObjects, primaryProfile);
                         }
                         delete this.dualEngineFENResults[calcFen];

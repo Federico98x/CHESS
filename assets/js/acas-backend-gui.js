@@ -219,10 +219,20 @@ const settingFilterObj = { 'type': 'global', 'instanceID': null, 'profileID': nu
 function updateDualEngineStatus(data) {
     const statusTextElem = document.querySelector('#dual-engine-status-text');
     const indicatorElem = document.querySelector('#dual-engine-status-indicator');
+    const debugElem = document.querySelector('#dual-engine-debug-info');
 
     if (!statusTextElem || !indicatorElem) return;
 
     statusTextElem.innerText = data.details || 'Active';
+
+    if (debugElem) {
+        if (data.debug) {
+            debugElem.innerText = data.debug;
+            debugElem.style.display = 'block';
+        } else {
+            debugElem.style.display = 'none';
+        }
+    }
 
     switch(data.status) {
         case 'active':
