@@ -42,7 +42,7 @@
 // @homepageURL https://psyyke.github.io/A.C.A.S
 // @supportURL  https://github.com/Psyyke/A.C.A.S/tree/main#why-doesnt-it-work
 // @match       https://psyyke.github.io/A.C.A.S/*
-// @match       http://localhost/*
+// @match       http://localhost:*/*
 // @match       https://www.chess.com/*
 // @match       https://lichess.org/*
 // @match       https://playstrategy.org/*
@@ -136,19 +136,23 @@ function constructBackendURL(host) {
     const protocol = window.location.protocol + '//';
     const hosts = backendConfig.hosts;
 
-    return protocol + (host || (hosts?.prod || hosts?.path)) + backendConfig.path;
+    const isLocalhost = host?.includes('localhost') || host?.includes('127.0.0.1');
+    const path = isLocalhost ? '/' : backendConfig.path;
+
+    return protocol + (host || (hosts?.prod || hosts?.path)) + path;
 }
 
 function isRunningOnBackend(skipGM) {
     const hostsArr = Object.values(backendConfig.hosts);
 
-    const foundHost = hostsArr.find(host => host === window?.location?.host);
-    const isCorrectPath = window?.location?.pathname?.includes(backendConfig.path);
+    const isLocalhost = window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1';
+    const foundHost = hostsArr.find(host => host === window?.location?.host || (isLocalhost && host === 'localhost'));
+    const isCorrectPath = window?.location?.pathname?.includes(backendConfig.path) || isLocalhost;
 
     const isBackend = typeof foundHost === 'string' && isCorrectPath;
 
     if(isBackend && !skipGM)
-        GM_setValue(currentBackendUrlKey, constructBackendURL(foundHost));
+        GM_setValue(currentBackendUrlKey, constructBackendURL(window?.location?.host));
 
     return isBackend;
 }
