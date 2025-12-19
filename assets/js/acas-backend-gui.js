@@ -265,15 +265,27 @@ function updateDualEngineStatus(data) {
 
     switch(data.status) {
         case 'active':
-            indicatorElem.style.backgroundColor = 'orange';
+            indicatorElem.style.backgroundColor = '#3498db'; // Blue for calculating
+            indicatorElem.classList.add('blinking');
             break;
         case 'finished':
-            indicatorElem.style.backgroundColor = 'limegreen';
+            indicatorElem.classList.remove('blinking');
+            if (data.color === 'Agree') {
+                indicatorElem.style.backgroundColor = '#2ecc71'; // Green
+            } else if (data.color === 'Dubious') {
+                indicatorElem.style.backgroundColor = '#f1c40f'; // Yellow/Orange
+            } else if (data.color === 'Disagree') {
+                indicatorElem.style.backgroundColor = '#e74c3c'; // Red
+            } else {
+                indicatorElem.style.backgroundColor = '#2ecc71';
+            }
             break;
         case 'error':
+            indicatorElem.classList.remove('blinking');
             indicatorElem.style.backgroundColor = 'crimson';
             break;
         default:
+            indicatorElem.classList.remove('blinking');
             indicatorElem.style.backgroundColor = 'grey';
             break;
     }

@@ -477,6 +477,10 @@ function getArrowStyle(type, fill, opacity) {
             return getBaseStyleModification('limegreen', 0.9);
         case 'dubious':
             return getBaseStyleModification('orange', 0.8);
+        case 'disagree':
+            return getBaseStyleModification('red', 0.8);
+        case 'validator':
+            return getBaseStyleModification('#3498db', 0.7);
         case 'secondary':
             return getBaseStyleModification('dodgerblue', 0.7);
         case 'opponent':
@@ -749,8 +753,9 @@ const boardUtils = {
             } else {
                 let playerArrowElem = null;
                 let oppArrowElem = null;
-                let arrowType = markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary');
-                let arrowColor = markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex);
+                let validatorArrowElem = null;
+                let arrowType = markingObj.isDisagree ? 'disagree' : (markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary'));
+                let arrowColor = markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex));
                 let arrowStyle = getArrowStyle(arrowType, arrowColor, arrowOpacity);
                 let lineWidth = 30;
                 let arrowheadWidth = 80;
@@ -771,6 +776,30 @@ const boardUtils = {
                         lineWidth, arrowheadWidth, arrowheadHeight, startOffset
                     }
                 );
+
+                const otherMarkingElems = [];
+
+                if (markingObj.validationLoss) {
+                    const labelElem = BoardDrawer.createShape('text', to, {
+                        text: markingObj.validationLoss,
+                        size: 1.2,
+                        style: `fill: white; stroke: black; stroke-width: 1px; font-weight: bold; opacity: ${arrowOpacity};`,
+                        position: [0, -0.6]
+                    });
+                    if (labelElem) otherMarkingElems.push(labelElem);
+                }
+
+                if (markingObj.validatorBestMove && markingObj.validatorBestMove !== (from + to)) {
+                    const vFrom = markingObj.validatorBestMove.slice(0, 2);
+                    const vTo = markingObj.validatorBestMove.slice(2, 4);
+                    validatorArrowElem = BoardDrawer.createShape('arrow', [vFrom, vTo], {
+                        style: getArrowStyle('validator', '#3498db', arrowOpacity),
+                        lineWidth: lineWidth * 0.8,
+                        arrowheadWidth: arrowheadWidth * 0.8,
+                        arrowheadHeight: arrowheadHeight * 0.8,
+                        startOffset: startOffset + 5
+                    });
+                }
 
                 if(oppMovesExist && showOpponentMoveGuess) {
                     oppArrowElem = BoardDrawer.createShape('arrow', [oppFrom, oppTo],
@@ -806,15 +835,18 @@ const boardUtils = {
                     const parentElem = playerArrowElem.parentElement;
 
                     // move best arrow element on top (multiple same moves can hide the best move)
+                    if (validatorArrowElem) parentElem.appendChild(validatorArrowElem);
                     parentElem.appendChild(playerArrowElem);
 
                     if(oppArrowElem) {
                         parentElem.appendChild(oppArrowElem);
                     }
+                    
+                    otherMarkingElems.forEach(el => parentElem.appendChild(el));
                 }
 
                 activeGuiMoveMarkings.push(
-                    { ...markingObj, playerArrowElem, oppArrowElem, profile }
+                    { ...markingObj, playerArrowElem, oppArrowElem, validatorArrowElem, otherElems: otherMarkingElems, profile }
                 );
             }
         });

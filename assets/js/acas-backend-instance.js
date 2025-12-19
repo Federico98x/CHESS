@@ -1897,25 +1897,28 @@ class BackendInstance {
                         });
 
                         let statusColor = 'Agree';
+                        let lossText = '';
                         let debugInfo = `Primary: ${maiaMove} | Validator: Agree`;
 
                         if (maiaMove !== stockfishMove) {
-                            statusColor = 'Dubious';
-                            debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove}`;
-
                             if (stockfishBestPV && stockfishMaiaPV) {
                                 const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
                                 const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
                                 const loss = stockfishBestCP - stockfishMaiaCP;
+                                lossText = (loss / -100).toFixed(1);
                                 
                                 if (loss <= 50) {
                                     statusColor = 'Agree';
                                     debugInfo = `Primary: ${maiaMove} | Validator: Agree (Loss: ${loss}cp)`;
+                                } else if (loss <= 100) {
+                                    statusColor = 'Dubious';
+                                    debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Loss: ${loss}cp)`;
                                 } else {
+                                    statusColor = 'Disagree';
                                     debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Loss: ${loss}cp)`;
                                 }
-                            } else if (stockfishBestPV) {
-                                // If we don't have Maia's CP but it's not the best move, it's definitely dubious/disagree
+                            } else {
+                                statusColor = 'Disagree';
                                 debugInfo = `Primary: ${maiaMove} | Validator prefers: ${stockfishMove}`;
                             }
                         }
@@ -1923,11 +1926,16 @@ class BackendInstance {
                         if (statusColor !== 'Agree') {
                             topMoveObjects.forEach(obj => {
                                 const objMove = obj.player[0] + obj.player[1];
-                                if (objMove === maiaMove) obj.isDubious = true;
+                                if (objMove === maiaMove) {
+                                    if (statusColor === 'Dubious') obj.isDubious = true;
+                                    if (statusColor === 'Disagree') obj.isDisagree = true;
+                                    obj.validationLoss = lossText;
+                                    obj.validatorBestMove = stockfishMove;
+                                }
                             });
                         }
 
-                        this.broadcastValidationStatus('finished', statusColor === 'Agree' ? 'Engines Agree!' : 'Validator Disagrees!', debugInfo, statusColor);
+                        this.broadcastValidationStatus('finished', statusColor === 'Agree' ? 'Engines Agree!' : (statusColor === 'Dubious' ? 'Validator: Dubious' : 'Validator Disagrees!'), debugInfo, statusColor);
                         this.displayMoves(topMoveObjects, primaryProfile);
                     }
                     delete this.dualEngineFENResults[calcFen];
