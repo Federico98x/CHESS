@@ -207,6 +207,7 @@ function getSiteData(dataType, obj) {
     return result;
 }
 
+function prependProtocolWhenNeeded(url) {
     return url;
 }
 
@@ -657,6 +658,7 @@ const boardUtils = {
             const primaryArrowColorHex = getConfigValue(configKeys.primaryArrowColorHex, profile);
             const secondaryArrowColorHex = getConfigValue(configKeys.secondaryArrowColorHex, profile);
             const opponentArrowColorHex = getConfigValue(configKeys.opponentArrowColorHex, profile);
+            const dubiousArrowColorHex = getConfigValue(configKeys.dubiousArrowColorHex, profile);
             const moveAsFilledSquares = getConfigValue(configKeys.moveAsFilledSquares, profile);
             const onlySuggestPieces = getConfigValue(configKeys.onlySuggestPieces, profile);
             const movesOnDemand = getConfigValue(configKeys.movesOnDemand, profile);
@@ -755,15 +757,13 @@ const boardUtils = {
                 let arrowheadHeight = 60;
                 let startOffset = 30;
 
-                    const arrowScale = totalRanks === 2
-                        ? 0.75
-                        : maxScale - (maxScale - minScale) * ((rank - 1) / (totalRanks - 1));
+                const arrowScale = totalRanks === 2
+                    ? 0.75
+                    : maxScale - (maxScale - minScale) * ((rank - 1) / (totalRanks - 1));
 
-                    lineWidth = lineWidth * arrowScale;
-                    arrowheadWidth = arrowheadWidth * arrowScale;
-                    arrowheadHeight = arrowheadHeight * arrowScale;
-                    startOffset = startOffset;
-                }
+                lineWidth = lineWidth * arrowScale;
+                arrowheadWidth = arrowheadWidth * arrowScale;
+                arrowheadHeight = arrowheadHeight * arrowScale;
 
                 playerArrowElem = BoardDrawer.createShape('arrow', [from, to],
                     {
@@ -1394,7 +1394,7 @@ class AutomaticMove {
         this.isPromotingPawn = false;
 
         this.onFinished = function(...args) {
-            activeAutomoves.filter(x => x.id !== this.id); // remove the move from the active automove list
+            activeAutomoves = activeAutomoves.filter(x => x.id !== this.id); // remove the move from the active automove list
 
             this.active = false;
 
@@ -1954,26 +1954,6 @@ function canvasHasPixelAt(canvas, [xPercentage, yPercentage], debug) {
     }
 
     return pixel[3] !== 0;
-}
-
-function getSiteData(dataType, obj) {
-    const pathname = window.location.pathname;
-
-    let dataObj = { pathname };
-
-    if(obj && typeof obj === 'object') {
-        dataObj = { ...dataObj, ...obj };
-    }
-
-    const dataHandlerFunction = supportedSites[domain]?.[dataType];
-
-    if(typeof dataHandlerFunction !== 'function') {
-        return null;
-    }
-
-    const result = dataHandlerFunction(dataObj);
-
-    return result;
 }
 
 function addSupportedChessSite(domain, typeHandlerObj) {
