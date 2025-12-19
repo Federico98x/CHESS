@@ -203,8 +203,35 @@ guiBroadcastChannel.onmessage = e => {
         case 'updateChessVariants':
             fillChessVariantDropdowns(data);
             break;
+        case 'dualEngineStatus':
+            updateDualEngineStatus(data);
+            break;
     }
 };
+
+function updateDualEngineStatus(data) {
+    const statusTextElem = document.querySelector('#dual-engine-status-text');
+    const indicatorElem = document.querySelector('#dual-engine-status-indicator');
+
+    if (!statusTextElem || !indicatorElem) return;
+
+    statusTextElem.innerText = data.details || 'Active';
+
+    switch(data.status) {
+        case 'active':
+            indicatorElem.style.backgroundColor = 'orange';
+            break;
+        case 'finished':
+            indicatorElem.style.backgroundColor = 'limegreen';
+            break;
+        case 'error':
+            indicatorElem.style.backgroundColor = 'crimson';
+            break;
+        default:
+            indicatorElem.style.backgroundColor = 'grey';
+            break;
+    }
+}
 
 function displayNoUserscriptNotification(isEnable) {
     if(isEnable)

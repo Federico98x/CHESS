@@ -1454,6 +1454,17 @@ class BackendInstance {
         }
     }
 
+    broadcastValidationStatus(status, details) {
+        this.guiBroadcastChannel.postMessage({
+            type: 'dualEngineStatus',
+            data: {
+                status,
+                details,
+                instanceID: this.instanceID
+            }
+        });
+    }
+
     async calculateBestMoves(currentFen, skipValidityChecks, specificMovesObj) {
         const profiles = await getProfiles();
 
@@ -1521,6 +1532,7 @@ class BackendInstance {
 
             const dualEngineValidation = await this.getConfigValue(this.configKeys.dualEngineValidation, profileName);
             if (dualEngineValidation) {
+                this.broadcastValidationStatus('active', 'Calculating...');
                 if (!this.dualEngineFENResults[currentFen]) {
                     this.dualEngineFENResults[currentFen] = {};
                 }
@@ -1810,6 +1822,7 @@ class BackendInstance {
                     const validatorResult = this.dualEngineFENResults[this.currentFen][validatorProfile];
 
                     if (primaryResult?.finished && validatorResult?.finished) {
+                        this.broadcastValidationStatus('active', 'Comparing Moves...');
                         // Both engines finished for this FEN!
                         const markingLimit = await this.getConfigValue(this.configKeys.moveSuggestionAmount, primaryProfile);
                         let topMoveObjects = this.pV[primaryProfile].pastMoveObjects?.slice(markingLimit * -1);
@@ -1829,12 +1842,14 @@ class BackendInstance {
                             return pvMove === maiaMove;
                         });
 
+                        let statusColor = 'Agree';
                         if (stockfishBestPV && stockfishMaiaPV) {
                             const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
                             const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
                             const loss = stockfishBestCP - stockfishMaiaCP;
                             
                             if (loss > 50) { // 0.5 loss
+                                statusColor = 'Dubious';
                                 topMoveObjects.forEach(obj => {
                                     const objMove = obj.player[0] + obj.player[1];
                                     if (objMove === maiaMove) {
@@ -1842,12 +1857,9 @@ class BackendInstance {
                                     }
                                 });
                             }
-                        } else if (stockfishBestPV && maiaMove !== (stockfishBestPV.player[0] + stockfishBestPV.player[1])) {
-                             // Maia move not in top 5 of Stockfish? Likely dubious if loss is significant
-                             // Since we don't have the exact CP, we can assume it's dubious if it's not in MultiPV 5
-                             // but that might be too aggressive. For now, only mark if we HAVE the CP.
                         }
 
+                        this.broadcastValidationStatus('finished', statusColor === 'Agree' ? 'Engines Agree!' : 'Validator Disagrees!');
                         this.displayMoves(topMoveObjects, primaryProfile);
                         // Clean up old FEN results to save memory
                         delete this.dualEngineFENResults[this.currentFen];
