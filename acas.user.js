@@ -410,7 +410,26 @@ const configKeys = {
     'feedbackOnExternalSite': 'feedbackOnExternalSite',
     'moveAsFilledSquares': 'moveAsFilledSquares',
     'movesOnDemand': 'movesOnDemand',
-    'onlySuggestPieces': 'onlySuggestPieces'
+    'onlySuggestPieces': 'onlySuggestPieces',
+    'engineEnabled': 'engineEnabled',
+    'renderSquarePlayer': 'renderSquarePlayer',
+    'renderSquareEnemy': 'renderSquareEnemy',
+    'renderSquareContested': 'renderSquareContested',
+    'renderSquareSafe': 'renderSquareSafe',
+    'renderPiecePlayerCapture': 'renderPiecePlayerCapture',
+    'renderPieceEnemyCapture': 'renderPieceEnemyCapture',
+    'enableMoveRatings': 'enableMoveRatings',
+    'enableEnemyFeedback': 'enableEnemyFeedback',
+    'feedbackEngineDepth': 'feedbackEngineDepth',
+    'enableAdvancedElo': 'enableAdvancedElo',
+    'advancedElo': 'advancedElo',
+    'advancedEloDepth': 'advancedEloDepth',
+    'advancedEloSkill': 'advancedEloSkill',
+    'advancedEloMaxError': 'advancedEloMaxError',
+    'advancedEloProbability': 'advancedEloProbability',
+    'advancedEloHash': 'advancedEloHash',
+    'advancedEloThreads': 'advancedEloThreads',
+    'proModeEnabled': 'proModeEnabled'
 };
 
 const config = {};
@@ -474,17 +493,21 @@ function getArrowStyle(type, fill, opacity) {
 
     switch(type) {
         case 'best':
-            return getBaseStyleModification('limegreen', 0.9);
-        case 'dubious':
-            return getBaseStyleModification('orange', 0.8);
-        case 'disagree':
-            return getBaseStyleModification('red', 0.8);
-        case 'validator':
-            return getBaseStyleModification('#f1c40f', 0.7);
+            return getBaseStyleModification(fill || 'limegreen', opacity || 0.9);
         case 'secondary':
-            return getBaseStyleModification('dodgerblue', 0.7);
+            return getBaseStyleModification(fill || 'dodgerblue', opacity || 0.7);
         case 'opponent':
-            return getBaseStyleModification('crimson', 0.3);
+            return getBaseStyleModification(fill || 'crimson', opacity || 0.3);
+        case 'dubious':
+            return getBaseStyleModification(fill || 'orange', opacity || 0.8);
+        case 'disagree':
+            return getBaseStyleModification(fill || 'red', opacity || 0.9);
+        case 'blunder':
+            return getBaseStyleModification(fill || 'black', opacity || 1.0);
+        case 'validator':
+            return getBaseStyleModification(fill || '#f1c40f', opacity || 0.7);
+        default:
+            return getBaseStyleModification(fill || 'gray', opacity || 0.5);
     }
 };
 
@@ -655,6 +678,9 @@ const boardUtils = {
             const oppMovesExist = oppFrom && oppTo;
             const rank = idx + 1;
             const cp = markingObj?.cp;
+            const mate = markingObj?.mate;
+            const depth = markingObj?.depth;
+            const ranking = markingObj?.ranking || 1;
 
             const showOpponentMoveGuess = getConfigValue(configKeys.showOpponentMoveGuess, profile);
             const showOpponentMoveGuessConstantly = getConfigValue(configKeys.showOpponentMoveGuessConstantly, profile);
@@ -666,6 +692,33 @@ const boardUtils = {
             const moveAsFilledSquares = getConfigValue(configKeys.moveAsFilledSquares, profile);
             const onlySuggestPieces = getConfigValue(configKeys.onlySuggestPieces, profile);
             const movesOnDemand = getConfigValue(configKeys.movesOnDemand, profile);
+            const proModeEnabled = getConfigValue(configKeys.proModeEnabled, profile);
+
+            let evalStr = '';
+            if (typeof mate === 'number') {
+                evalStr = 'M' + mate;
+            } else if (typeof cp === 'number') {
+                const score = cp / 100;
+                evalStr = (score > 0 ? '+' : '') + score.toFixed(2);
+            }
+
+            if (proModeEnabled && evalStr && depth) {
+                evalStr += ` (d${depth})`;
+            }
+
+            const wdl = markingObj.wdl;
+            if (proModeEnabled && wdl) {
+                const [w, d, l] = wdl.split(' ').map(Number);
+                const total = w + d + l;
+                if (total > 0) {
+                    const winPct = Math.round(w / total * 100);
+                    evalStr += ` | ${winPct}%`;
+                }
+            }
+
+            if (proModeEnabled && ranking > 1) {
+                evalStr = `[${ranking}] ${evalStr}`;
+            }
 
             if(onlySuggestPieces && !movesOnDemand) {
                 const fillType = idx === 0 ? 1 : 0,
@@ -752,10 +805,26 @@ const boardUtils = {
 
             } else {
                 let playerArrowElem = null;
+                let playerEvalElem = null;
                 let oppArrowElem = null;
+                let oppEvalElem = null;
                 let validatorArrowElem = null;
+
                 let arrowType = markingObj.isDisagree ? 'disagree' : (markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary'));
                 let arrowColor = markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex));
+                
+                if (proModeEnabled) {
+                    if (typeof mate === 'number') {
+                        arrowColor = mate > 0 ? '#00ff00' : '#ff0000';
+                    } else if (typeof cp === 'number') {
+                        if (cp >= 150) arrowColor = '#2ecc71';
+                        else if (cp >= 50) arrowColor = '#90ee90';
+                        else if (cp > -50) arrowColor = '#ffff00';
+                        else if (cp > -150) arrowColor = '#e67e22';
+                        else arrowColor = '#e74c3c';
+                    }
+                }
+
                 let arrowStyle = getArrowStyle(arrowType, arrowColor, arrowOpacity);
                 let lineWidth = 30;
                 let arrowheadWidth = 80;
@@ -778,6 +847,14 @@ const boardUtils = {
                 );
 
                 const otherMarkingElems = [];
+
+                if (proModeEnabled && evalStr) {
+                    playerEvalElem = BoardDrawer.createShape('text', to, {
+                        text: evalStr,
+                        style: `fill: black; stroke: white; stroke-width: 1.5px; paint-order: stroke; font-size: 20px; font-weight: bold; pointer-events: none;`,
+                    });
+                    if (playerEvalElem) otherMarkingElems.push(playerEvalElem);
+                }
 
                 if (markingObj.validationLoss) {
                     const labelElem = BoardDrawer.createShape('text', to, {
@@ -802,17 +879,36 @@ const boardUtils = {
                 }
 
                 if(oppMovesExist && showOpponentMoveGuess) {
+                    let currentOpponentArrowColorHex = opponentArrowColorHex;
+                    if (typeof cp === 'number' && cp <= -200) {
+                        currentOpponentArrowColorHex = '#000000';
+                    }
+
+                    if (proModeEnabled) {
+                        currentOpponentArrowColorHex = arrowColor;
+                    }
+
                     oppArrowElem = BoardDrawer.createShape('arrow', [oppFrom, oppTo],
                         {
-                            style: getArrowStyle('opponent', opponentArrowColorHex, arrowOpacity),
+                            style: getArrowStyle('opponent', currentOpponentArrowColorHex, arrowOpacity),
                             lineWidth, arrowheadWidth, arrowheadHeight, startOffset
                         }
                     );
 
+                    if (evalStr) {
+                        oppEvalElem = BoardDrawer.createShape('text', oppTo, {
+                            text: evalStr,
+                            style: `fill: ${proModeEnabled ? 'black' : 'white'}; stroke: ${proModeEnabled ? 'white' : 'black'}; stroke-width: 1.5px; paint-order: stroke; font-size: 20px; font-weight: bold; pointer-events: none;`,
+                        });
+                        if (oppEvalElem) otherMarkingElems.push(oppEvalElem);
+                    }
+
                     if(showOpponentMoveGuessConstantly) {
                         oppArrowElem.style.display = 'block';
+                        if (oppEvalElem) oppEvalElem.style.display = 'block';
                     } else {
                         oppArrowElem.style.display = 'none';
+                        if (oppEvalElem) oppEvalElem.style.display = 'none';
 
                         const squareListener = BoardDrawer.addSquareListener(from, type => {
                             if(!oppArrowElem) {
@@ -822,9 +918,11 @@ const boardUtils = {
                             switch(type) {
                                 case 'enter':
                                     oppArrowElem.style.display = 'inherit';
+                                    if (oppEvalElem) oppEvalElem.style.display = 'inherit';
                                     break;
                                 case 'leave':
                                     oppArrowElem.style.display = 'none';
+                                    if (oppEvalElem) oppEvalElem.style.display = 'none';
                                     break;
                             }
                         });
@@ -1860,8 +1958,9 @@ function isBoardDrawerNeeded() {
             const externalRenders = gP[profileName][configKeys.renderOnExternalSite];
             const externalFeedback = gP[profileName][configKeys.feedbackOnExternalSite];
             const movesOnDemand = gP[profileName][configKeys.movesOnDemand];
+            const proMode = gP[profileName][configKeys.proModeEnabled];
 
-            if(externalMoves || externalRenders || externalFeedback || movesOnDemand) {
+            if(externalMoves || externalRenders || externalFeedback || movesOnDemand || proMode) {
                 return true;
             }
         }
@@ -1875,8 +1974,9 @@ function isBoardDrawerNeeded() {
             const externalRenders = iP[profileName][configKeys.renderOnExternalSite];
             const externalFeedback = iP[profileName][configKeys.feedbackOnExternalSite];
             const movesOnDemand = iP[profileName][configKeys.movesOnDemand];
+            const proMode = iP[profileName][configKeys.proModeEnabled];
 
-            if(externalMoves || externalRenders || externalFeedback || movesOnDemand) {
+            if(externalMoves || externalRenders || externalFeedback || movesOnDemand || proMode) {
                 return true;
             }
         }
