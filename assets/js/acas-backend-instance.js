@@ -936,6 +936,10 @@ class BackendInstance {
         }
     }
 
+    setEngineWDL(bool, profile) {
+        this.sendMsgToEngine(`setoption name UCI_ShowWDL value ${bool}`, profile);
+    }
+
     setEngineThreads(amount, profile) {
         if(typeof amount == 'number') {
             this.sendMsgToEngine(`setoption name Threads value ${amount}`, profile);
@@ -1044,7 +1048,8 @@ class BackendInstance {
         this.sendMsgToEngine('uci', profile); // to display variants
 
         this.setEngineMultiPV(await this.getConfigValue(this.configKeys.moveSuggestionAmount, profile), profile);
-        this.setEngineShowWDL(true, profile);
+        this.setEngineWDL(true, profile);
+        this.setEngineThreads(await this.getConfigValue(this.configKeys.threads, profile), profile);
 
         if(engineName !== 'lc0')
             this.sendMsgToEngine(`setoption name UCI_AnalyseMode value true`, profile); // required for threads, etc.
