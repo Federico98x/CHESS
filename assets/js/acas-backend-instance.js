@@ -87,7 +87,12 @@ class BackendInstance {
         };
 
         this.setEngineMultiPV = (value, profile) => {
-            this.sendMsgToEngine(`setoption name MultiPV value ${value}`, profile);
+            if (this.isEngineNotCalculating(profile)) {
+                this.sendMsgToEngine(`setoption name MultiPV value ${value}`, profile);
+            } else {
+                if(this.debugLogsEnabled) console.warn('Delayed setting MultiPV until engine finishes current search', profile);
+                // We don't queue it here to avoid UCI violations, it will be set on next calculateBestMoves call
+            }
         };
     
         // Not in use
@@ -113,6 +118,8 @@ class BackendInstance {
         this.pV = {}; // profile variables
         this.dualEngineFENResults = {};
         this.activeValidationContext = null;
+
+        this.engineLoadIntervals = {};
 
         this.unprocessedPackets = [];
         this.currentFen = null;
@@ -1517,10 +1524,15 @@ class BackendInstance {
             const currentEngineName = await this.getEngineType(profileName);
 
             if(this.isPawnOnPromotionSquare(currentFen) && currentEngineName === 'lc0') continue;
-            // Engine is still calculating, do not start any new calculation since,
-            // that will not give us 'bestmove' which A.C.A.S' logic EXPECTS.
-            // The best moves will be calculated after we get the 'bestmove'.
-            if(!this.isEngineNotCalculating(profileName)) continue;
+            if(!this.isEngineNotCalculating(profileName)) {
+                const lastCalculatedFen = this.pV[profileName].lastCalculatedFen;
+                if (lastCalculatedFen !== currentFen) {
+                    if(this.debugLogsEnabled) console.warn('Stopping engine to start new calculation for new FEN', profileName);
+                    this.engineStopCalculating(profileName, 'FEN changed while calculating');
+                } else {
+                    continue;
+                }
+            }
 
             const isFenChangeLogical = this.isFenChangeLogical(this.pV[profileName].lastFen, currentFen);
             const reverseSide = await this.getConfigValue(this.configKeys.reverseSide, profileName);
@@ -1663,17 +1675,23 @@ class BackendInstance {
         if(!engineExists && isProfile) {
             let elapsed = 0;
 
-            const waitForEngineToLoad = setInterval(() => {
+            if (this.engineLoadIntervals[i]) {
+                return; // Already waiting for this engine
+            }
+
+            this.engineLoadIntervals[i] = setInterval(() => {
 
                 if(this.getEngineAcasObj(i)?.sendMsg && isProfile) {
                     this.getEngineAcasObj(i).sendMsg(msg);
     
-                    clearInterval(waitForEngineToLoad);
+                    clearInterval(this.engineLoadIntervals[i]);
+                    delete this.engineLoadIntervals[i];
                 } else {
                     // Wait max 10 seconds
                     if(elapsed++ > 100) {
                         if(this.debugLogsEnabled) console.warn('Attempted to send message to non existing engine?', `(${i})`);
-                        clearInterval(waitForEngineToLoad);
+                        clearInterval(this.engineLoadIntervals[i]);
+                        delete this.engineLoadIntervals[i];
                     }
                 }
 
@@ -1960,6 +1978,14 @@ class BackendInstance {
                         this.displayMoves(topMoveObjects, primaryProfile);
                     }
                     delete this.dualEngineFENResults[calcFen];
+                    
+                    // Cleanup old FEN results to prevent memory leaks (keep only last 10)
+                    const fenKeys = Object.keys(this.dualEngineFENResults);
+                    if (fenKeys.length > 10) {
+                        fenKeys.slice(0, fenKeys.length - 10).forEach(key => {
+                            delete this.dualEngineFENResults[key];
+                        });
+                    }
                     
                     // If FEN has changed during validation, start new calculation
                     if (calcFen !== this.currentFen) {
