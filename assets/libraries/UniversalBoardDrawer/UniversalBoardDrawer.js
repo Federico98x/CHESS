@@ -252,18 +252,24 @@ class UniversalBoardDrawer {
     }
 
     removeAllExistingShapes() {
-        this.addedShapes
-            .forEach(shapeObj => {
-                shapeObj.element?.remove();
+        if (this.addedShapes) {
+            this.addedShapes.forEach(shapeObj => {
+                if (shapeObj.element) {
+                    shapeObj.element.remove();
+                    // Nullify references to help GC and prevent re-use
+                    shapeObj.element = null;
+                }
             });
-        
+        }
         this.addedShapes = [];
     }
 
     removeShape(element) {
+        if (!element) return;
         this.addedShapes = this.addedShapes.filter(shapeObj => {
             if (shapeObj.element === element) {
                 shapeObj.element?.remove();
+                shapeObj.element = null;
                 return false;
             }
             return true;

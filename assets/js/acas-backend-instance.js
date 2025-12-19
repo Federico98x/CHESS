@@ -580,8 +580,9 @@ class BackendInstance {
                 }
 
                 if(!profile) {
+                    this.BoardDrawer?.removeAllExistingShapes();
                     Object.keys(this.pV).forEach(profileName => {
-                        removeMarkingFromProfile(this, profileName);
+                        this.pV[profileName].activeGuiMoveMarkings = [];
                     });
                 } else {
                     removeMarkingFromProfile(this, profile);
