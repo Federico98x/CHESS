@@ -100,6 +100,8 @@ class BackendInstance {
 
         this.domain = domain;
         this.instanceID = instanceID;
+        this.chessVariant = chessVariant;
+        this.guiBroadcastChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('acas-gui') : null;
 
         this.onLoadCallbackFunction = onLoadCallbackFunction;
 
@@ -172,10 +174,10 @@ class BackendInstance {
                 const variantFromConfig = await t.getConfigValue(t.configKeys.chessVariant, profile);
                 const use960FromConfig = await t.getConfigValue(t.configKeys.useChess960, profile);
 
-                instance.chessVariant = isVariant960(chessVariant)
+                instance.chessVariant = isVariant960(t.chessVariant)
                     ? formatVariant('chess')
-                    : formatVariant(chessVariant || variantFromConfig || 'chess');
-                instance.useChess960 = isVariant960(chessVariant) ? true : use960FromConfig;
+                    : formatVariant(t.chessVariant || variantFromConfig || 'chess');
+                instance.useChess960 = isVariant960(t.chessVariant) ? true : use960FromConfig;
                 instance.lc0WeightName = await t.getConfigValue(t.configKeys.lc0Weight, profile);
         
                 return instance;
@@ -217,7 +219,7 @@ class BackendInstance {
             }
         });
 
-        this.guiBroadcastChannel = new BroadcastChannel('gui');
+        this.guiBroadcastChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('acas-gui-channel') : null;
 
         this.guiBroadcastChannel.onmessage = e => {
             if(!this.instanceReady || this.instanceClosed) return;

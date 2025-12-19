@@ -55,7 +55,11 @@ guiBroadcastChannel.onmessage = e => {
     }
     
     if (type === 'updateChessVariants') {
-        // ... handled elsewhere or can be added here
+        fillChessVariantDropdowns(data);
+    }
+
+    if (type === 'dualEngineStatus') {
+        updateDualEngineStatus(data);
     }
 };
 
@@ -211,24 +215,6 @@ deleteProfileBtn.onclick = () => {
 const options = [settingsNavbarGlobalElem, settingsInstanceDropdownElem];
 
 const settingFilterObj = { 'type': 'global', 'instanceID': null, 'profileID': null };
-
-const guiBroadcastChannel = new BroadcastChannel('gui');
-
-guiBroadcastChannel.onmessage = e => {
-    const msg = e.data;
-
-    const type = msg.type;
-    const data = msg.data;
-
-    switch(type) {
-        case 'updateChessVariants':
-            fillChessVariantDropdowns(data);
-            break;
-        case 'dualEngineStatus':
-            updateDualEngineStatus(data);
-            break;
-    }
-};
 
 function updateDualEngineStatus(data) {
     const statusTextElem = document.querySelector('#dual-engine-status-text');
