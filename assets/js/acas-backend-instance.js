@@ -370,6 +370,14 @@ class BackendInstance {
                     const oppMovesExist = oppFrom && oppTo;
                     const rank = idx + 1;
                     const cp = markingObj.cp;
+                    const mate = markingObj.mate;
+
+                    let evalStr = '';
+                    if (typeof mate === 'number') {
+                        evalStr = 'M' + mate;
+                    } else if (typeof cp === 'number') {
+                        evalStr = (cp / 100).toFixed(2);
+                    }
 
                     if(onlySuggestPieces && !movesOnDemand) {
                         const fillType = idx === 0 ? 1 : 0,
@@ -483,17 +491,32 @@ class BackendInstance {
                         );
             
                         if(oppMovesExist && showOpponentMoveGuess) {
+                            let currentOpponentArrowColorHex = opponentArrowColorHex;
+                            if (typeof cp === 'number' && cp <= -200) {
+                                currentOpponentArrowColorHex = '#000000';
+                            }
+
                             oppArrowElem = BoardDrawer.createShape('arrow', [oppFrom, oppTo],
                                 {
-                                    style: this.getArrowStyle('opponent', opponentArrowColorHex, arrowOpacity),
+                                    style: this.getArrowStyle('opponent', currentOpponentArrowColorHex, arrowOpacity),
                                     lineWidth, arrowheadWidth, arrowheadHeight, startOffset
                                 }
                             );
+
+                            let oppEvalElem = null;
+                            if (evalStr) {
+                                oppEvalElem = BoardDrawer.createShape('text', oppTo, {
+                                    text: evalStr,
+                                    style: `fill: white; stroke: black; stroke-width: 2px; font-size: 20px; font-weight: bold; pointer-events: none;`,
+                                });
+                            }
     
                             if(showOpponentMoveGuessConstantly) {
                                 oppArrowElem.style.display = 'block';
+                                if (oppEvalElem) oppEvalElem.style.display = 'block';
                             } else {
                                 oppArrowElem.style.display = 'none';
+                                if (oppEvalElem) oppEvalElem.style.display = 'none';
 
                                 const squareListener = BoardDrawer.addSquareListener(from, type => {
                                     if(!oppArrowElem) {
@@ -503,9 +526,11 @@ class BackendInstance {
                                     switch(type) {
                                         case 'enter':
                                             oppArrowElem.style.display = 'inherit';
+                                            if (oppEvalElem) oppEvalElem.style.display = 'inherit';
                                             break;
                                         case 'leave':
                                             oppArrowElem.style.display = 'none';
+                                            if (oppEvalElem) oppEvalElem.style.display = 'none';
                                             break;
                                     }
                                 });
@@ -521,10 +546,14 @@ class BackendInstance {
                             if(oppArrowElem) {
                                 parentElem.appendChild(oppArrowElem);
                             }
+
+                            if(oppEvalElem) {
+                                parentElem.appendChild(oppEvalElem);
+                            }
                         }
     
                         this.pV[profile].activeGuiMoveMarkings.push(
-                            { ...markingObj, playerArrowElem, oppArrowElem }
+                            { ...markingObj, playerArrowElem, oppArrowElem, oppEvalElem }
                         );
                     }
                 });
@@ -537,6 +566,7 @@ class BackendInstance {
                 function removeMarkingFromProfile(t, p) {
                     t.pV[p].activeGuiMoveMarkings.forEach(markingObj => {
                         markingObj.oppArrowElem?.remove();
+                        markingObj.oppEvalElem?.remove();
                         markingObj.playerArrowElem?.remove();
                         markingObj?.otherElems?.forEach(x => x?.remove());
                     });

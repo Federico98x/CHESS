@@ -647,16 +647,24 @@ const boardUtils = {
 
         const markedSquares = { 0: [], 1: [] };
 
-        moveObjArr.forEach((markingObj, idx) => {
-            const profile = markingObj.profile;
+            moveObjArr.forEach((markingObj, idx) => {
+                const profile = markingObj.profile;
 
-            const [from, to] = markingObj.player;
-            const [oppFrom, oppTo] = markingObj.opponent;
-            const oppMovesExist = oppFrom && oppTo;
-            const rank = idx + 1;
-            const cp = markingObj?.cp;
+                const [from, to] = markingObj.player;
+                const [oppFrom, oppTo] = markingObj.opponent;
+                const oppMovesExist = oppFrom && oppTo;
+                const rank = idx + 1;
+                const cp = markingObj?.cp;
+                const mate = markingObj?.mate;
 
-            const showOpponentMoveGuess = getConfigValue(configKeys.showOpponentMoveGuess, profile);
+                let evalStr = '';
+                if (typeof mate === 'number') {
+                    evalStr = 'M' + mate;
+                } else if (typeof cp === 'number') {
+                    evalStr = (cp / 100).toFixed(2);
+                }
+
+                const showOpponentMoveGuess = getConfigValue(configKeys.showOpponentMoveGuess, profile);
             const showOpponentMoveGuessConstantly = getConfigValue(configKeys.showOpponentMoveGuessConstantly, profile);
             const arrowOpacity = getConfigValue(configKeys.arrowOpacity, profile) / 100;
             const primaryArrowColorHex = getConfigValue(configKeys.primaryArrowColorHex, profile);
@@ -802,17 +810,33 @@ const boardUtils = {
                 }
 
                 if(oppMovesExist && showOpponentMoveGuess) {
+                    let currentOpponentArrowColorHex = opponentArrowColorHex;
+                    if (typeof cp === 'number' && cp <= -200) {
+                        currentOpponentArrowColorHex = '#000000';
+                    }
+
                     oppArrowElem = BoardDrawer.createShape('arrow', [oppFrom, oppTo],
                         {
-                            style: getArrowStyle('opponent', opponentArrowColorHex, arrowOpacity),
+                            style: getArrowStyle('opponent', currentOpponentArrowColorHex, arrowOpacity),
                             lineWidth, arrowheadWidth, arrowheadHeight, startOffset
                         }
                     );
 
+                    let oppEvalElem = null;
+                    if (evalStr) {
+                        oppEvalElem = BoardDrawer.createShape('text', oppTo, {
+                            text: evalStr,
+                            style: `fill: white; stroke: black; stroke-width: 2px; font-size: 20px; font-weight: bold; pointer-events: none;`,
+                        });
+                        if (oppEvalElem) otherMarkingElems.push(oppEvalElem);
+                    }
+
                     if(showOpponentMoveGuessConstantly) {
                         oppArrowElem.style.display = 'block';
+                        if (oppEvalElem) oppEvalElem.style.display = 'block';
                     } else {
                         oppArrowElem.style.display = 'none';
+                        if (oppEvalElem) oppEvalElem.style.display = 'none';
 
                         const squareListener = BoardDrawer.addSquareListener(from, type => {
                             if(!oppArrowElem) {
@@ -822,9 +846,11 @@ const boardUtils = {
                             switch(type) {
                                 case 'enter':
                                     oppArrowElem.style.display = 'inherit';
+                                    if (oppEvalElem) oppEvalElem.style.display = 'inherit';
                                     break;
                                 case 'leave':
                                     oppArrowElem.style.display = 'none';
+                                    if (oppEvalElem) oppEvalElem.style.display = 'none';
                                     break;
                             }
                         });
