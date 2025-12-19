@@ -702,22 +702,22 @@ const boardUtils = {
                 evalStr = (score > 0 ? '+' : '') + score.toFixed(2);
             }
 
-            if (proModeEnabled && evalStr && depth) {
-                evalStr += ` (d${depth})`;
-            }
-
             const wdl = markingObj.wdl;
             if (proModeEnabled && wdl) {
                 const [w, d, l] = wdl.split(' ').map(Number);
                 const total = w + d + l;
                 if (total > 0) {
                     const winPct = Math.round(w / total * 100);
-                    evalStr += ` | ${winPct}%`;
+                    evalStr = `${winPct}%`;
                 }
-            }
-
-            if (proModeEnabled && ranking > 1) {
-                evalStr = `[${ranking}] ${evalStr}`;
+            } else if (proModeEnabled) {
+                // Keep the score/mate as evalStr if no WDL data, but don't add depth or ranking
+            } else {
+                if (evalStr && depth) {
+                    // In non-pro mode, depth isn't usually shown, but I'll stick to the original logic
+                    // Wait, original logic ONLY added depth if proModeEnabled was true.
+                    // So in non-pro mode, evalStr is just score.
+                }
             }
 
             if(onlySuggestPieces && !movesOnDemand) {
@@ -856,7 +856,7 @@ const boardUtils = {
                     if (playerEvalElem) otherMarkingElems.push(playerEvalElem);
                 }
 
-                if (markingObj.validationLoss) {
+                if (markingObj.validationLoss && !proModeEnabled) {
                     const labelElem = BoardDrawer.createShape('text', to, {
                         text: markingObj.validationLoss,
                         size: 1.0,
