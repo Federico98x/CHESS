@@ -89,10 +89,11 @@ class BackendInstance {
 
         this.setEngineMultiPV = (value, profile) => {
             if (this.isEngineNotCalculating(profile)) {
-                this.sendMsgToEngine(`setoption name MultiPV value ${value}`, profile);
+                // Safety cap for MultiPV to avoid engine crashes on lite builds
+                const cappedValue = Math.min(value, 8);
+                this.sendMsgToEngine(`setoption name MultiPV value ${cappedValue}`, profile);
             } else {
                 if(this.debugLogsEnabled) console.warn('Delayed setting MultiPV until engine finishes current search', profile);
-                // We don't queue it here to avoid UCI violations, it will be set on next calculateBestMoves call
             }
         };
     
@@ -1901,9 +1902,15 @@ class BackendInstance {
 
             this.pV[profile].pastMoveObjects.push(moveObj);
 
+            // Prune pastMoveObjects to avoid memory leak and performance degradation
+            if (this.pV[profile].pastMoveObjects.length > 100) {
+                this.pV[profile].pastMoveObjects = this.pV[profile].pastMoveObjects.slice(-50);
+            }
+
             // -- Advanced Metrics Calculation --
             // 1. Sharpness Calculation (based on MultiPV scores)
             const latestPVs = {};
+            // Only use the last 50 moves for sharpness calculation to be efficient
             this.pV[profile].pastMoveObjects.forEach(pv => {
                 latestPVs[pv.ranking] = pv;
             });
