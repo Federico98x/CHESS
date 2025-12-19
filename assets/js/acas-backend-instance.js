@@ -17,6 +17,10 @@ class BackendInstance {
             'chessFont': 'chessFont',
             'useChess960': 'useChess960',
             'onlyCalculateOwnTurn': 'onlyCalculateOwnTurn',
+            'dualEngineValidation': 'dualEngineValidation',
+            'dualEnginePrimaryProfile': 'dualEnginePrimaryProfile',
+            'dualEngineValidatorProfile': 'dualEngineValidatorProfile',
+            'dubiousArrowColorHex': 'dubiousArrowColorHex',
             'ttsVoiceEnabled': 'ttsVoiceEnabled',
             'ttsVoiceName': 'ttsVoiceName',
             'ttsVoiceSpeed': 'ttsVoiceSpeed',
@@ -88,6 +92,7 @@ class BackendInstance {
 
         this.engines = [];
         this.pV = {}; // profile variables
+        this.dualEngineFENResults = {};
 
         this.unprocessedPackets = [];
         this.currentFen = null;
@@ -1488,6 +1493,18 @@ class BackendInstance {
     
             this.renderMetric(currentFen, profileName);
             this.Interface.boardUtils.updateBoardFen(currentFen);
+
+            const dualEngineValidation = await this.getConfigValue(this.configKeys.dualEngineValidation, profileName);
+            if (dualEngineValidation) {
+                if (!this.dualEngineFENResults[currentFen]) {
+                    this.dualEngineFENResults[currentFen] = {};
+                }
+                // Ensure validator uses MultiPV if it's a Stockfish-like engine
+                const isValidator = profileName === await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profileName);
+                if (isValidator) {
+                    this.setEngineMultiPV(5, profileName);
+                }
+            }
         
             this.sendMsgToEngine(`position fen ${reversedFen || currentFen}`, profileName);
 
@@ -1705,6 +1722,17 @@ class BackendInstance {
 
             this.pV[profile].pastMoveObjects.push(moveObj);
 
+            // Dual Engine Validation: Store intermediate PV results for the validator
+            const dualEngineValidation = await this.getConfigValue(this.configKeys.dualEngineValidation, profile);
+            if (dualEngineValidation) {
+                const validatorProfile = await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profile);
+                if (profile === validatorProfile) {
+                    if (!this.dualEngineFENResults[this.currentFen]) this.dualEngineFENResults[this.currentFen] = {};
+                    if (!this.dualEngineFENResults[this.currentFen][profile]) this.dualEngineFENResults[this.currentFen][profile] = { pvs: [] };
+                    this.dualEngineFENResults[this.currentFen][profile].pvs.push(moveObj);
+                }
+            }
+
             const isMovetimeLimited = await this.getConfigValue(this.configKeys.maxMovetime, profile) ? true : false;
             const onlyShowTopMoves = await this.getConfigValue(this.configKeys.onlyShowTopMoves, profile);
             const movesOnDemand = await this.getConfigValue(this.configKeys.movesOnDemand, profile);
@@ -1729,6 +1757,7 @@ class BackendInstance {
                 && topMoveObjects.length === (markingLimit - removedDuplicateMoveAmount)
                 && (!onlyShowTopMoves || (isSearchInfinite && !isMovetimeLimited)) // handle infinite search, cannot only show top moves when search is infinite
                 && (!isDelayActive || (calculationTimeElapsed > moveDisplayDelay)) // handle visual delay, do not show move if time elapsed is too low
+                && !dualEngineValidation // Do not display intermediate moves in dual engine mode to avoid flickering
             ) {
                 this.displayMoves(topMoveObjects, profile);
             }
@@ -1737,6 +1766,64 @@ class BackendInstance {
         if(data?.bestmove) {
             if(oldestUnfinishedCalcRequestObj)
                 oldestUnfinishedCalcRequestObj.finished = true;
+
+            // Dual Engine Validation: Logic to compare Maia and Stockfish
+            const dualEngineValidation = await this.getConfigValue(this.configKeys.dualEngineValidation, profile);
+            if (dualEngineValidation) {
+                const primaryProfile = await this.getConfigValue(this.configKeys.dualEnginePrimaryProfile, profile);
+                const validatorProfile = await this.getConfigValue(this.configKeys.dualEngineValidatorProfile, profile);
+                
+                if (profile === primaryProfile || profile === validatorProfile) {
+                    if (!this.dualEngineFENResults[this.currentFen]) this.dualEngineFENResults[this.currentFen] = {};
+                    this.dualEngineFENResults[this.currentFen][profile] = { 
+                        bestmove: data.bestmove, 
+                        profile: profile,
+                        finished: true 
+                    };
+
+                    const primaryResult = this.dualEngineFENResults[this.currentFen][primaryProfile];
+                    const validatorResult = this.dualEngineFENResults[this.currentFen][validatorProfile];
+
+                    if (primaryResult?.finished && validatorResult?.finished) {
+                        // Both engines finished for this FEN!
+                        const markingLimit = await this.getConfigValue(this.configKeys.moveSuggestionAmount, primaryProfile);
+                        let topMoveObjects = this.pV[primaryProfile].pastMoveObjects?.slice(markingLimit * -1);
+                        
+                        if(topMoveObjects?.length === 0) {
+                            topMoveObjects = [{ 'player': [primaryResult.bestmove.slice(0,2), primaryResult.bestmove.slice(2, 4)], 'opponent': [null, null], 'ranking': 1 }];
+                        } else {
+                            topMoveObjects = getUniqueMoves(topMoveObjects)?.[0];
+                        }
+
+                        // VALIDATION LOGIC
+                        const maiaMove = primaryResult.bestmove.slice(0, 4);
+                        const validatorPVs = this.dualEngineFENResults[this.currentFen][validatorProfile].pvs || [];
+                        const stockfishBestPV = validatorPVs.find(pv => pv.ranking === 1);
+                        const stockfishMaiaPV = validatorPVs.find(pv => pv.player[0] + pv.player[1] === maiaMove);
+
+                        if (stockfishBestPV && stockfishMaiaPV) {
+                            const loss = stockfishBestPV.cp - stockfishMaiaPV.cp;
+                            if (loss > 50) { // 0.5 loss
+                                topMoveObjects.forEach(obj => {
+                                    if (obj.player[0] + obj.player[1] === maiaMove) {
+                                        obj.isDubious = true;
+                                    }
+                                });
+                            }
+                        } else if (stockfishBestPV && maiaMove !== (stockfishBestPV.player[0] + stockfishBestPV.player[1])) {
+                             // Maia move not in top 5 of Stockfish? Likely dubious if loss is significant
+                             // Since we don't have the exact CP, we can assume it's dubious if it's not in MultiPV 5
+                             // but that might be too aggressive. For now, only mark if we HAVE the CP.
+                        }
+
+                        this.displayMoves(topMoveObjects, primaryProfile);
+                        // Clean up old FEN results to save memory
+                        delete this.dualEngineFENResults[this.currentFen];
+                    }
+                    // If validation is ON, we RETURN here for both primary and validator to avoid default displayMoves
+                    return;
+                }
+            }
 
             // Check if the board has changed while we were finishing up a move calculation.
             if(oldestUnfinishedCalcRequestObj?.fen !== this.currentFen) {

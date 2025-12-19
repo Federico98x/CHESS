@@ -345,6 +345,10 @@ const configKeys = {
     'chessFont': 'chessFont',
     'useChess960': 'useChess960',
     'onlyCalculateOwnTurn': 'onlyCalculateOwnTurn',
+    'dualEngineValidation': 'dualEngineValidation',
+    'dualEnginePrimaryProfile': 'dualEnginePrimaryProfile',
+    'dualEngineValidatorProfile': 'dualEngineValidatorProfile',
+    'dubiousArrowColorHex': 'dubiousArrowColorHex',
     'ttsVoiceEnabled': 'ttsVoiceEnabled',
     'ttsVoiceName': 'ttsVoiceName',
     'ttsVoiceSpeed': 'ttsVoiceSpeed',
@@ -428,6 +432,8 @@ function getArrowStyle(type, fill, opacity) {
     switch(type) {
         case 'best':
             return getBaseStyleModification('limegreen', 0.9);
+        case 'dubious':
+            return getBaseStyleModification('orange', 0.8);
         case 'secondary':
             return getBaseStyleModification('dodgerblue', 0.7);
         case 'opponent':
@@ -699,14 +705,13 @@ const boardUtils = {
             } else {
                 let playerArrowElem = null;
                 let oppArrowElem = null;
-                let arrowStyle = getArrowStyle('best', primaryArrowColorHex, arrowOpacity);
+                let arrowType = markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary');
+                let arrowColor = markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex);
+                let arrowStyle = getArrowStyle(arrowType, arrowColor, arrowOpacity);
                 let lineWidth = 30;
                 let arrowheadWidth = 80;
                 let arrowheadHeight = 60;
                 let startOffset = 30;
-
-                if(idx !== 0) {
-                    arrowStyle = getArrowStyle('secondary', secondaryArrowColorHex, arrowOpacity);
 
                     const arrowScale = totalRanks === 2
                         ? 0.75

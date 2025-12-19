@@ -424,6 +424,25 @@
 								<div class="input-subtitle" title="Ms means millisecond. 1000 milliseconds is 1 second.">1000ms is 1 second</div></div>
 								<input type="textfield" data-key="maxMovetime" data-default-value="0" data-between="0-100000">
 							</div>
+							<div class="setting-panel bordered">
+								<div class="setting-panel-title">Dual Engine Validation ⚔️</div>
+								<div class="checkbox-input custom-input"><div><div class="input-title">Enable Validation</div>
+									<div class="input-subtitle">Wait for Stockfish to check Maia's move</div></div><div class="checkbox-container">
+									<input type="checkbox" data-key="dualEngineValidation" data-default-value="false"><div class="checkbox-fill">✓</div></div>
+								</div>
+								<div class="textfield-input custom-input"><div><div class="input-title">Primary Profile</div>
+									<div class="input-subtitle">Name of the Maia 2 profile</div></div>
+									<input type="textfield" data-key="dualEnginePrimaryProfile" data-default-value="default">
+								</div>
+								<div class="textfield-input custom-input"><div><div class="input-title">Validator Profile</div>
+									<div class="input-subtitle">Name of the Stockfish profile</div></div>
+									<input type="textfield" data-key="dualEngineValidatorProfile" data-default-value="stockfish">
+								</div>
+								<div class="color-input custom-input"><div><div class="input-title">Dubious Move Color</div>
+									<div class="input-subtitle">Color when Maia's move is >0.5 worse</div></div>
+									<input type="color" data-key="dubiousArrowColorHex" data-default-value="#FFA500">
+								</div>
+							</div>
 						</div>
 						<div class="setting-panel">
 							<div class="setting-panel-title"><span class="visual-panel-title">Visual</span> 👁️‍🗨️</div>
