@@ -635,6 +635,12 @@ function displayFeedback(addedFeedback) {
 
 const boardUtils = {
     markMoves: moveObjArr => { // needs refactoring but too lazy for now
+        if(!BoardDrawer) {
+            if(debugModeActivated) console.warn('BoardDrawer not initialized, trying to initialize...');
+            if(chessBoardElem) start();
+            return;
+        }
+
         const maxScale = 1;
         const minScale = 0.5;
         const totalRanks = moveObjArr.length;
@@ -1958,7 +1964,7 @@ function isBoardDrawerNeeded() {
         }
     }
 
-    return false;
+    return !isRunningOnBackend();
 }
 
 function getConfigValue(key, profile) {
@@ -2358,7 +2364,7 @@ addSupportedChessSite('chess.com', {
             return document.querySelector('.TheBoard-layers');
         }
 
-        return document.querySelector('#board-layout-chessboard > .board, wc-chess-board, chess-board, .board');
+        return document.querySelector('#board-layout-chessboard > .board, wc-chess-board, chess-board, .board, [id*="board"], [class*="board"]');
     },
 
     'pieceElem': obj => {
@@ -2378,7 +2384,7 @@ addSupportedChessSite('chess.com', {
             return getAll ? filteredPieceElems : filteredPieceElems[0];
         }
 
-        return obj.boardQuerySelector('.piece, .piece-element, piece');
+        return obj.boardQuerySelector('.piece, .piece-element, piece, [class*="piece"], [id*="piece"]');
     },
 
     'squareElems': obj => {
@@ -3616,7 +3622,7 @@ async function start() {
             'window': window,
             'boardDimensions': getBoardDimensions(),
             'playerColor': getPlayerColorVariable(),
-            'zIndex': 10000,
+            'zIndex': 999999999,
             'prepend': true,
             'debugMode': debugModeActivated,
             'adjustSizeByDimensions': adjustSizeByDimensions ? true : false,
@@ -3625,6 +3631,11 @@ async function start() {
             },
             'ignoreBodyRectLeft': ignoreBodyRectLeft
         });
+
+        if (BoardDrawer.boardContainerElem) {
+            BoardDrawer.boardContainerElem.style.visibility = 'visible';
+            BoardDrawer.boardContainerElem.style.display = 'block';
+        }
 
         const waitForBoardMatrix = setInterval(() => {
             if(lastBoardMatrix) {
