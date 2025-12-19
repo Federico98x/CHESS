@@ -2358,7 +2358,7 @@ addSupportedChessSite('chess.com', {
             return document.querySelector('.TheBoard-layers');
         }
 
-        return document.querySelector('#board-layout-chessboard > .board');
+        return document.querySelector('#board-layout-chessboard > .board, wc-chess-board, chess-board, .board');
     },
 
     'pieceElem': obj => {
@@ -2378,7 +2378,7 @@ addSupportedChessSite('chess.com', {
             return getAll ? filteredPieceElems : filteredPieceElems[0];
         }
 
-        return obj.boardQuerySelector('.piece');
+        return obj.boardQuerySelector('.piece, .piece-element, piece');
     },
 
     'squareElems': obj => {
@@ -3616,7 +3616,7 @@ async function start() {
             'window': window,
             'boardDimensions': getBoardDimensions(),
             'playerColor': getPlayerColorVariable(),
-            'zIndex': domain === 'worldchess.com' ? 9999 : 500,
+            'zIndex': 10000,
             'prepend': true,
             'debugMode': debugModeActivated,
             'adjustSizeByDimensions': adjustSizeByDimensions ? true : false,
