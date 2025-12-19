@@ -1952,16 +1952,30 @@ class BackendInstance {
         function restartEngine(name, e) {
             if(alreadyRestarted) return;
 
-            if(!e?.message?.includes('memory access')) {
-                if(!e?.message?.includes('[object ErrorEvent]'))
-                    toast.error(`Engine "${name}" crashed due to "${e?.message}"!`, 5e3);
+            const errorMessage = e?.message || '';
+            const isMemoryError = errorMessage.includes('memory access');
+            const isUnreachableError = errorMessage.includes('unreachable') || errorMessage.includes('Aborted');
+            const isHeavyEngine = name === 'stockfish-17-single';
+
+            if(!isMemoryError && !isUnreachableError) {
+                if(!errorMessage.includes('[object ErrorEvent]'))
+                    toast.error(`Engine "${name}" crashed due to "${errorMessage}"!`, 5e3);
 
                 return;
             }
 
-            console.error(`Restarting the engine "${name}" due to the error "${e?.message}"!`);
+            console.error(`Restarting the engine "${name}" due to the error "${errorMessage}"!`);
 
-            const engineObjectIdx = this.engines.findIndex(x => x.type === name);
+            if(isHeavyEngine && isUnreachableError) {
+                toast.warning(`"Stockfish 17" crashed. This usually happens due to memory limits. Switching to "Stockfish 17 Lite" for stability...`, 10000);
+                
+                // Switch to lite version for this profile
+                this.loadEngine(profileName, 'stockfish-17-lite-single', attempt + 1);
+                alreadyRestarted = true;
+                return;
+            }
+
+            const engineObjectIdx = this.engines.findIndex(x => x.profileName === profileName);
 
             // Ask engine to quit if it can still listen
             this.sendMsgToEngine('quit', name); 
