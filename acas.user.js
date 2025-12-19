@@ -720,9 +720,28 @@ const boardUtils = {
                 }
             }
 
+            const getProColor = (mObj) => {
+                const { cp, mate } = mObj;
+                if (typeof mate === 'number') {
+                    return mate > 0 ? '#00ff00' : '#ff0000';
+                } else if (typeof cp === 'number') {
+                    if (cp >= 150) return '#2ecc71';
+                    if (cp >= 50) return '#90ee90';
+                    if (cp > -50) return '#ffff00';
+                    if (cp > -150) return '#e67e22';
+                    return '#e74c3c';
+                }
+                return null;
+            };
+
             if(onlySuggestPieces && !movesOnDemand) {
-                const fillType = idx === 0 ? 1 : 0,
-                      fillColor = fillType ? primaryArrowColorHex : secondaryArrowColorHex;
+                const fillType = idx === 0 ? 1 : 0;
+                let fillColor = fillType ? primaryArrowColorHex : secondaryArrowColorHex;
+
+                if (proModeEnabled) {
+                    const proColor = getProColor(markingObj);
+                    if (proColor) fillColor = proColor;
+                }
 
                 const fromSquareMarking = fillSquare(from, `opacity: ${arrowOpacity}; stroke-width: 5; stroke: black; rx: 2; ry: 2; fill: ${fillColor};`);
                 let markedSquareElems = [fromSquareMarking];
@@ -751,9 +770,15 @@ const boardUtils = {
                 );
 
             } else if(moveAsFilledSquares) {
-                const fillType = idx === 0 ? 1 : 0,
-                      fillColor = fillType ? primaryArrowColorHex : secondaryArrowColorHex,
-                      styling = `opacity: ${arrowOpacity}; stroke-width: 5; stroke: black; rx: 2; ry: 2; fill: ${fillColor};`,
+                const fillType = idx === 0 ? 1 : 0;
+                let fillColor = fillType ? primaryArrowColorHex : secondaryArrowColorHex;
+
+                if (proModeEnabled) {
+                    const proColor = getProColor(markingObj);
+                    if (proColor) fillColor = proColor;
+                }
+
+                const styling = `opacity: ${arrowOpacity}; stroke-width: 5; stroke: black; rx: 2; ry: 2; fill: ${fillColor};`,
                       skipFromSquare = markedSquares[fillType].find(x => x === from) ? 'opacity: 0;' : '',
                       skipToSquare = markedSquares[fillType].find(x => x === to) ? 'opacity: 0;' : '';
 
@@ -814,14 +839,9 @@ const boardUtils = {
                 let arrowColor = markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex));
                 
                 if (proModeEnabled) {
-                    if (typeof mate === 'number') {
-                        arrowColor = mate > 0 ? '#00ff00' : '#ff0000';
-                    } else if (typeof cp === 'number') {
-                        if (cp >= 150) arrowColor = '#2ecc71';
-                        else if (cp >= 50) arrowColor = '#90ee90';
-                        else if (cp > -50) arrowColor = '#ffff00';
-                        else if (cp > -150) arrowColor = '#e67e22';
-                        else arrowColor = '#e74c3c';
+                    const proColor = getProColor(markingObj);
+                    if (proColor) {
+                        arrowColor = proColor;
                     }
                 }
 
