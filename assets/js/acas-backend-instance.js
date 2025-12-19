@@ -86,16 +86,6 @@ class BackendInstance {
                 });
             }
         };
-
-        this.setEngineMultiPV = (value, profile) => {
-            if (this.isEngineNotCalculating(profile)) {
-                // Safety cap for MultiPV to avoid engine crashes on lite builds
-                const cappedValue = Math.min(value, 8);
-                this.sendMsgToEngine(`setoption name MultiPV value ${cappedValue}`, profile);
-            } else {
-                if(this.debugLogsEnabled) console.warn('Delayed setting MultiPV until engine finishes current search', profile);
-            }
-        };
     
         // Not in use
         this.setConfigValue = (key, val, profile) => {
@@ -995,7 +985,14 @@ class BackendInstance {
 
     setEngineMultiPV(amount, profile) {
         if(typeof amount == 'number') {
-            this.sendMsgToEngine(`setoption name MultiPV value ${amount}`, profile);
+            if (this.isEngineNotCalculating(profile)) {
+                // Safety cap for MultiPV to avoid engine crashes on lite builds
+                // Lite engines often crash with RuntimeError: index out of bounds if MultiPV is > 8
+                const cappedValue = Math.min(amount, 8);
+                this.sendMsgToEngine(`setoption name MultiPV value ${cappedValue}`, profile);
+            } else {
+                if(this.debugLogsEnabled) console.warn('Delayed setting MultiPV until engine finishes current search', profile);
+            }
         }
     }
 
@@ -1897,7 +1894,14 @@ class BackendInstance {
                 moves = [...moves, [null, null]];
 
             const cp = data?.cp;
-            const [[from, to], [opponentFrom, opponentTo]] = moves;
+
+            // Robust move extraction to avoid "index out of bounds" or "not iterable" errors
+            const playerMove = moves[0] || [null, null];
+            const opponentMove = moves[1] || [null, null];
+
+            const [from, to] = playerMove;
+            const [opponentFrom, opponentTo] = opponentMove;
+
             const moveObj = { 'player': [from, to], 'opponent': [opponentFrom, opponentTo], cp, profile, ranking };
 
             this.pV[profile].pastMoveObjects.push(moveObj);
