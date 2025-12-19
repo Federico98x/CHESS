@@ -570,10 +570,10 @@ class BackendInstance {
 
                 function removeMarkingFromProfile(t, p) {
                     t.pV[p].activeGuiMoveMarkings.forEach(markingObj => {
-                        markingObj.oppArrowElem?.remove();
-                        markingObj.oppEvalElem?.remove();
-                        markingObj.playerArrowElem?.remove();
-                        markingObj?.otherElems?.forEach(x => x?.remove());
+                        t.BoardDrawer?.removeShape(markingObj.oppArrowElem);
+                        t.BoardDrawer?.removeShape(markingObj.oppEvalElem);
+                        t.BoardDrawer?.removeShape(markingObj.playerArrowElem);
+                        markingObj?.otherElems?.forEach(x => t.BoardDrawer?.removeShape(x));
                     });
     
                     t.pV[p].activeGuiMoveMarkings = [];

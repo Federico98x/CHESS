@@ -256,6 +256,18 @@ class UniversalBoardDrawer {
             .forEach(shapeObj => {
                 shapeObj.element?.remove();
             });
+        
+        this.addedShapes = [];
+    }
+
+    removeShape(element) {
+        this.addedShapes = this.addedShapes.filter(shapeObj => {
+            if (shapeObj.element === element) {
+                shapeObj.element?.remove();
+                return false;
+            }
+            return true;
+        });
     }
 
     removeAllDebugDots() {
