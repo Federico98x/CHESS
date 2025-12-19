@@ -480,7 +480,7 @@ function getArrowStyle(type, fill, opacity) {
         case 'disagree':
             return getBaseStyleModification('red', 0.8);
         case 'validator':
-            return getBaseStyleModification('#3498db', 0.7);
+            return getBaseStyleModification('#f1c40f', 0.7);
         case 'secondary':
             return getBaseStyleModification('dodgerblue', 0.7);
         case 'opponent':
@@ -793,7 +793,7 @@ const boardUtils = {
                     const vFrom = markingObj.validatorBestMove.slice(0, 2);
                     const vTo = markingObj.validatorBestMove.slice(2, 4);
                     validatorArrowElem = BoardDrawer.createShape('arrow', [vFrom, vTo], {
-                        style: getArrowStyle('validator', '#3498db', arrowOpacity),
+                        style: getArrowStyle('validator', '#f1c40f', arrowOpacity),
                         lineWidth: lineWidth * 0.8,
                         arrowheadWidth: arrowheadWidth * 0.8,
                         arrowheadHeight: arrowheadHeight * 0.8,
@@ -865,6 +865,7 @@ const boardUtils = {
         removalArr.forEach(markingObj => {
             markingObj.oppArrowElem?.remove();
             markingObj.playerArrowElem?.remove();
+            markingObj.validatorArrowElem?.remove();
             markingObj?.otherElems?.forEach(x => x?.remove());
         });
     },
