@@ -63,6 +63,35 @@ guiBroadcastChannel.onmessage = e => {
     }
 };
 
+function updateDualEngineStatus(data) {
+    const { status, details, debug, color, instanceID } = data;
+    
+    const statusElem = document.querySelector(`.acas-instance[data-instance-id="${instanceID}"] .dual-engine-status-text`);
+    const debugElem = document.querySelector(`.acas-instance[data-instance-id="${instanceID}"] .dual-engine-debug-text`);
+    const dotElem = document.querySelector(`.acas-instance[data-instance-id="${instanceID}"] .validation-status-dot`);
+    
+    if (statusElem) {
+        statusElem.innerText = details || '';
+    }
+    
+    if (debugElem) {
+        debugElem.innerText = debug || '';
+    }
+    
+    if (dotElem) {
+        // Map color to CSS class
+        let colorClass = 'inactive';
+        if (status === 'active') colorClass = 'active';
+        if (status === 'finished') {
+            if (color === 'Agree') colorClass = 'agree';
+            if (color === 'Dubious') colorClass = 'dubious';
+            if (color === 'Disagree') colorClass = 'disagree';
+        }
+        
+        dotElem.className = 'validation-status-dot ' + colorClass;
+    }
+}
+
 const instanceSizeChangeContainerElem = document.querySelector('#instance-size-change-container');
 const decreaseInstanceSizeBtn = document.querySelector('#decrease-instance-size-btn');
 const increaseInstanceSizeBtn = document.querySelector('#increase-instance-size-btn');

@@ -1568,3 +1568,32 @@ p[data-translation-ffs-instructions] {
 video {
 	border-radius: 5px;
 }
+
+.validation-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+.validation-status-dot.inactive { background-color: grey; }
+.validation-status-dot.active { background-color: #3498db; animation: validation-blink 1s infinite; }
+.validation-status-dot.agree { background-color: #2ecc71; box-shadow: 0 0 5px #2ecc71; }
+.validation-status-dot.dubious { background-color: #f39c12; box-shadow: 0 0 5px #f39c12; }
+.validation-status-dot.disagree { background-color: #e74c3c; box-shadow: 0 0 5px #e74c3c; }
+
+@keyframes validation-blink {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.dual-engine-debug-text {
+    font-size: 11px;
+    color: #95a5a6;
+    font-family: monospace;
+    margin-top: 5px;
+    display: block;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 5px;
+}

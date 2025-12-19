@@ -1476,7 +1476,7 @@ class BackendInstance {
         }
     }
 
-    broadcastValidationStatus(status, details, debug) {
+    broadcastValidationStatus(status, details, debug, color) {
         if (this.guiBroadcastChannel) {
             this.guiBroadcastChannel.postMessage({
                 type: 'dualEngineStatus',
@@ -1484,6 +1484,7 @@ class BackendInstance {
                     status,
                     details,
                     debug,
+                    color,
                     instanceID: this.instanceID
                 }
             });
@@ -1887,6 +1888,7 @@ class BackendInstance {
 
                         // VALIDATION LOGIC
                         const maiaMove = primaryResult.bestmove.split(' ')?.[0];
+                        const stockfishMove = validatorResult.bestmove.split(' ')?.[0];
                         const validatorPVs = this.dualEngineFENResults[calcFen][validatorProfile].pvs || [];
                         const stockfishBestPV = validatorPVs.find(pv => pv.ranking === 1);
                         const stockfishMaiaPV = validatorPVs.find(pv => {
@@ -1897,22 +1899,35 @@ class BackendInstance {
                         let statusColor = 'Agree';
                         let debugInfo = `Primary: ${maiaMove} | Validator: Agree`;
 
-                        if (stockfishBestPV && stockfishMaiaPV) {
-                            const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
-                            const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
-                            const loss = stockfishBestCP - stockfishMaiaCP;
-                            
-                            if (loss > 50) {
-                                statusColor = 'Dubious';
-                                debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishBestPV.player[0]}${stockfishBestPV.player[1]} (Loss: ${loss}cp)`;
-                                topMoveObjects.forEach(obj => {
-                                    const objMove = obj.player[0] + obj.player[1];
-                                    if (objMove === maiaMove) obj.isDubious = true;
-                                });
+                        if (maiaMove !== stockfishMove) {
+                            statusColor = 'Dubious';
+                            debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove}`;
+
+                            if (stockfishBestPV && stockfishMaiaPV) {
+                                const stockfishBestCP = typeof stockfishBestPV.cp === 'number' ? stockfishBestPV.cp : 0;
+                                const stockfishMaiaCP = typeof stockfishMaiaPV.cp === 'number' ? stockfishMaiaPV.cp : 0;
+                                const loss = stockfishBestCP - stockfishMaiaCP;
+                                
+                                if (loss <= 50) {
+                                    statusColor = 'Agree';
+                                    debugInfo = `Primary: ${maiaMove} | Validator: Agree (Loss: ${loss}cp)`;
+                                } else {
+                                    debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Loss: ${loss}cp)`;
+                                }
+                            } else if (stockfishBestPV) {
+                                // If we don't have Maia's CP but it's not the best move, it's definitely dubious/disagree
+                                debugInfo = `Primary: ${maiaMove} | Validator prefers: ${stockfishMove}`;
                             }
                         }
 
-                        this.broadcastValidationStatus('finished', statusColor === 'Agree' ? 'Engines Agree!' : 'Validator Disagrees!', debugInfo);
+                        if (statusColor !== 'Agree') {
+                            topMoveObjects.forEach(obj => {
+                                const objMove = obj.player[0] + obj.player[1];
+                                if (objMove === maiaMove) obj.isDubious = true;
+                            });
+                        }
+
+                        this.broadcastValidationStatus('finished', statusColor === 'Agree' ? 'Engines Agree!' : 'Validator Disagrees!', debugInfo, statusColor);
                         this.displayMoves(topMoveObjects, primaryProfile);
                     }
                     delete this.dualEngineFENResults[calcFen];
