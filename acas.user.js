@@ -139,9 +139,9 @@ function constructBackendURL(host) {
     const hosts = backendConfig.hosts;
 
     const isLocalhost = host?.includes('localhost') || host?.includes('127.0.0.1') || host?.includes('[::1]');
-    const path = isLocalhost ? '/' : backendConfig.path;
+    const path = isLocalhost ? '/app/' : backendConfig.path;
 
-    return protocol + (host || (hosts?.prod || hosts?.path)) + path;
+    return protocol + (host || hosts?.prod) + path;
 }
 
 function isRunningOnBackend(skipGM) {
@@ -149,7 +149,9 @@ function isRunningOnBackend(skipGM) {
 
     const isLocalhost = window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1' || window?.location?.hostname === '[::1]';
     const foundHost = hostsArr.find(host => host === window?.location?.host || (isLocalhost && host === 'localhost'));
-    const isCorrectPath = window?.location?.pathname?.includes(backendConfig.path) || isLocalhost;
+    const isCorrectPath = isLocalhost 
+        ? (window?.location?.pathname?.startsWith('/app/') || window?.location?.pathname === '/')
+        : window?.location?.pathname?.includes(backendConfig.path);
 
     const isBackend = typeof foundHost === 'string' && isCorrectPath;
 
@@ -174,13 +176,36 @@ function isRunningOnBackend(skipGM) {
 const debugModeActivated = true;
 const onlyUseDevelopmentBackend = false;
 
-const domain = window.location.hostname.replace('www.', '');
-const greasyforkURL = 'https://greasyfork.org/en/scripts/459137';
+let domain = window.location.hostname.replace('www.', '');
 
-function prependProtocolWhenNeeded(url) {
-    if(!url.startsWith('http://') && !url.startsWith('https://')) {
-        return 'http://' + url;
+function getSiteData(dataType, obj) {
+    const pathname = window.location.pathname;
+    const hostname = window.location.hostname;
+
+    let dataObj = { pathname };
+
+    if(obj && typeof obj === 'object') {
+        dataObj = { ...dataObj, ...obj };
     }
+
+    let dataHandlerFunction = supportedSites[domain]?.[dataType];
+
+    if (typeof dataHandlerFunction !== 'function') {
+        const matchingDomain = Object.keys(supportedSites).find(d => hostname.endsWith(d));
+        if (matchingDomain) {
+            domain = matchingDomain;
+            dataHandlerFunction = supportedSites[domain]?.[dataType];
+        }
+    }
+
+    if(typeof dataHandlerFunction !== 'function') {
+        return null;
+    }
+
+    const result = dataHandlerFunction(dataObj);
+
+    return result;
+}
 
     return url;
 }
@@ -3566,7 +3591,10 @@ function initializeIfSiteReady() {
         chessBoardElem.addEventListener('touchend', () => { isUserMouseDown = false; });
 
         if(!blacklistedURLs.includes(window.location.href)) {
+            if (debugModeActivated) console.log('A.C.A.S Debug: Starting startWhenBackendReady...');
             startWhenBackendReady();
+        } else {
+            if (debugModeActivated) console.log('A.C.A.S Debug: URL is blacklisted, skipping start.');
         }
     }
 }
