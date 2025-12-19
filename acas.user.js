@@ -479,6 +479,8 @@ function getArrowStyle(type, fill, opacity) {
             return getBaseStyleModification('orange', 0.8);
         case 'disagree':
             return getBaseStyleModification('red', 0.8);
+        case 'blunder':
+            return getBaseStyleModification('black', 1.0);
         case 'validator':
             return getBaseStyleModification('#f1c40f', 0.7);
         case 'secondary':
@@ -762,8 +764,8 @@ const boardUtils = {
                 let playerArrowElem = null;
                 let oppArrowElem = null;
                 let validatorArrowElem = null;
-                let arrowType = markingObj.isDisagree ? 'disagree' : (markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary'));
-                let arrowColor = markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex));
+                let arrowType = markingObj.isBlunder ? 'blunder' : (markingObj.isDisagree ? 'disagree' : (markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary')));
+                let arrowColor = markingObj.isBlunder ? '#000000' : (markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex)));
                 let arrowStyle = getArrowStyle(arrowType, arrowColor, arrowOpacity);
                 let lineWidth = 30;
                 let arrowheadWidth = 80;

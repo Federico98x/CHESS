@@ -325,11 +325,19 @@ class BackendInstance {
 
         switch(type) {
             case 'best': 
-                return getBaseStyleModification('limegreen', 0.9);
+                return getBaseStyleModification(fill || 'limegreen', opacity || 0.9);
             case 'secondary': 
-                return getBaseStyleModification('dodgerblue', 0.7);
+                return getBaseStyleModification(fill || 'dodgerblue', opacity || 0.7);
             case 'opponent':
-                return getBaseStyleModification('crimson', 0.3);
+                return getBaseStyleModification(fill || 'crimson', opacity || 0.3);
+            case 'dubious':
+                return getBaseStyleModification(fill || 'orange', opacity || 0.8);
+            case 'disagree':
+                return getBaseStyleModification(fill || 'red', opacity || 0.9);
+            case 'blunder':
+                return getBaseStyleModification(fill || 'black', opacity || 1.0);
+            default:
+                return getBaseStyleModification(fill || 'gray', opacity || 0.5);
         }
     };
 
@@ -464,14 +472,10 @@ class BackendInstance {
                     } else {
                         let playerArrowElem = null;
                         let oppArrowElem = null;
-                        let arrowStyle = this.getArrowStyle('best', primaryArrowColorHex, arrowOpacity);
+                        let arrowType = markingObj.isBlunder ? 'blunder' : (markingObj.isDisagree ? 'disagree' : (markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary')));
+                        let arrowColor = markingObj.isBlunder ? '#000000' : (markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex)));
+                        let arrowStyle = this.getArrowStyle(arrowType, arrowColor, arrowOpacity);
                         let lineWidth = 30;
-                        let arrowheadWidth = 80;
-                        let arrowheadHeight = 60;
-                        let startOffset = 30;
-            
-                        if(idx !== 0) {
-                            arrowStyle = this.getArrowStyle('secondary', secondaryArrowColorHex, arrowOpacity);
             
                             const arrowScale = totalRanks === 2
                                 ? 0.75
@@ -2032,16 +2036,19 @@ class BackendInstance {
                                 const loss = stockfishBestScore - stockfishMaiaScore;
                                 lossText = (loss / -100).toFixed(1);
                                 
-                                if (loss <= 50) {
-                                    statusColor = 'Agree';
-                                    debugInfo = `Primary: ${maiaMove} | Validator: Agree (Loss: ${loss}cp)`;
-                                } else if (loss <= 100) {
-                                    statusColor = 'Dubious';
-                                    debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Loss: ${loss}cp)`;
-                                } else {
-                                    statusColor = 'Disagree';
-                                    debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Loss: ${loss}cp)`;
-                                }
+                                  if (loss <= 50) {
+                                      statusColor = 'Agree';
+                                      debugInfo = `Primary: ${maiaMove} | Validator: Agree (Loss: ${loss}cp)`;
+                                  } else if (loss <= 100) {
+                                      statusColor = 'Dubious';
+                                      debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Loss: ${loss}cp)`;
+                                  } else if (loss >= 200) {
+                                      statusColor = 'Blunder';
+                                      debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Loss: ${loss}cp)`;
+                                  } else {
+                                      statusColor = 'Disagree';
+                                      debugInfo = `Primary: ${maiaMove} | Validator suggests: ${stockfishMove} (Loss: ${loss}cp)`;
+                                  }
                             } else if (stockfishBestPV) {
                                 // Maia's move not found in Stockfish's top PVs, assume it's bad
                                 statusColor = 'Disagree';
@@ -2059,6 +2066,7 @@ class BackendInstance {
                                 if (objMove === maiaMove) {
                                     if (statusColor === 'Dubious') obj.isDubious = true;
                                     if (statusColor === 'Disagree') obj.isDisagree = true;
+                                    if (statusColor === 'Blunder') obj.isBlunder = true;
                                     obj.validationLoss = lossText;
                                     obj.validatorBestMove = stockfishMove;
                                 }
