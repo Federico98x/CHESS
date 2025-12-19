@@ -409,6 +409,7 @@ const configKeys = {
     'renderOnExternalSite': 'renderOnExternalSite',
     'feedbackOnExternalSite': 'feedbackOnExternalSite',
     'moveAsFilledSquares': 'moveAsFilledSquares',
+    'proModeEnabled': 'proModeEnabled',
     'movesOnDemand': 'movesOnDemand',
     'onlySuggestPieces': 'onlySuggestPieces'
 };

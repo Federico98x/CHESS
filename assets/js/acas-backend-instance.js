@@ -56,6 +56,7 @@ class BackendInstance {
             'advancedEloHash': 'advancedEloHash',
             'advancedEloThreads': 'advancedEloThreads',
             'moveAsFilledSquares': 'moveAsFilledSquares',
+            'proModeEnabled': 'proModeEnabled',
             'movesOnDemand': 'movesOnDemand',
             'onlySuggestPieces': 'onlySuggestPieces'
         };
@@ -356,6 +357,7 @@ class BackendInstance {
                 const secondaryArrowColorHex = await this.getConfigValue(this.configKeys.secondaryArrowColorHex, profile);
                 const opponentArrowColorHex = await this.getConfigValue(this.configKeys.opponentArrowColorHex, profile);
                 const moveAsFilledSquares = await this.getConfigValue(this.configKeys.moveAsFilledSquares, profile);
+                const proModeEnabled = await this.getConfigValue(this.configKeys.proModeEnabled, profile);
                 const onlySuggestPieces = await this.getConfigValue(this.configKeys.onlySuggestPieces, profile);
                 const movesOnDemand = await this.getConfigValue(this.configKeys.movesOnDemand, profile);
 
@@ -471,9 +473,17 @@ class BackendInstance {
                         );
                     } else {
                         let playerArrowElem = null;
+                        let playerEvalElem = null;
                         let oppArrowElem = null;
+                        let oppEvalElem = null;
+
                         let arrowType = markingObj.isBlunder ? 'blunder' : (markingObj.isDisagree ? 'disagree' : (markingObj.isDubious ? 'dubious' : (idx === 0 ? 'best' : 'secondary')));
                         let arrowColor = markingObj.isBlunder ? '#000000' : (markingObj.isDisagree ? '#e74c3c' : (markingObj.isDubious ? dubiousArrowColorHex : (idx === 0 ? primaryArrowColorHex : secondaryArrowColorHex)));
+                        
+                        if (proModeEnabled) {
+                            arrowColor = '#ffff00';
+                        }
+
                         let arrowStyle = this.getArrowStyle(arrowType, arrowColor, arrowOpacity);
                         let lineWidth = 30;
                         let arrowheadWidth = 80;
@@ -494,11 +504,22 @@ class BackendInstance {
                                 lineWidth, arrowheadWidth, arrowheadHeight, startOffset
                             }
                         );
+
+                        if (proModeEnabled && evalStr) {
+                            playerEvalElem = BoardDrawer.createShape('text', to, {
+                                text: evalStr,
+                                style: `fill: black; font-weight: bold; font-size: 20px; pointer-events: none;`,
+                            });
+                        }
             
                         if(oppMovesExist && showOpponentMoveGuess) {
                             let currentOpponentArrowColorHex = opponentArrowColorHex;
                             if (typeof cp === 'number' && cp <= -200) {
                                 currentOpponentArrowColorHex = '#000000';
+                            }
+
+                            if (proModeEnabled) {
+                                currentOpponentArrowColorHex = '#ffff00';
                             }
 
                             oppArrowElem = BoardDrawer.createShape('arrow', [oppFrom, oppTo],
@@ -508,11 +529,10 @@ class BackendInstance {
                                 }
                             );
 
-                            let oppEvalElem = null;
                             if (evalStr) {
                                 oppEvalElem = BoardDrawer.createShape('text', oppTo, {
                                     text: evalStr,
-                                    style: `fill: white; stroke: black; stroke-width: 2px; font-size: 20px; font-weight: bold; pointer-events: none;`,
+                                    style: `fill: ${proModeEnabled ? 'black' : 'white'}; stroke: ${proModeEnabled ? 'none' : 'black'}; stroke-width: ${proModeEnabled ? '0' : '2px'}; font-size: 20px; font-weight: bold; pointer-events: none;`,
                                 });
                             }
     
