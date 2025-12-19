@@ -140,7 +140,8 @@
         "pip": ["Floating Panel","Important! Stops A.C.A.S from freezing!"],
         "pipBoard": ["Display Board", "Instead of just text, display the entire board"],
         "movesOnDemand": ["Moves On Demand", "Calculates moves for pieces you interact with"],
-        "onlySuggestPieces": ["Only Suggest Pieces", "Suggest pieces to move, but give no moves"]
+        "onlySuggestPieces": ["Only Suggest Pieces", "Suggest pieces to move, but give no moves"],
+        "proModeEnabled": ["Pro Mode (Yellow + Eval)", "Yellow arrows with the exact move value"]
     },
     "translations": {
         "profileRemovalWarning": "Are you sure you want to remove this profile?\n\nThis action cannot be reversed.",
