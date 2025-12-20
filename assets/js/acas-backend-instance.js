@@ -678,7 +678,7 @@ class BackendInstance {
                         const fensString = fens.map(x => x.split(' ')[0]).join(',');
     
                         console.warn('%c[ NEW FEN RECEIVED! ]', 'color: neon; font-weight: bold; font-size: 50px;');
-                        console.warn('[Logical Change Detection] New board FEN received:', `${origin}/A.C.A.S/board/?fens=${fensString}&o=${this.lastOrientation}`, { fen, moveObj });
+                        console.warn('[Logical Change Detection] New board FEN received:', `${origin}/CHESS/board/?fens=${fensString}&o=${this.lastOrientation}`, { fen, moveObj });
                     }
 
                     if(!(moveObj?.from && moveObj?.to && moveObj?.color) && this.activeVariant !== 'atomic') {

@@ -1,4 +1,4 @@
-import zerofish from '/A.C.A.S/app/assets/engines/zerofish/zerofishEngine.js';
+import zerofish from '/CHESS/app/assets/engines/zerofish/zerofishEngine.js';
 
 let engine = null;
 

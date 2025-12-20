@@ -1,4 +1,4 @@
-importScripts('/A.C.A.S/app/assets/engines/fairy-stockfish-nnue.wasm/stockfish.js');
+importScripts('/CHESS/app/assets/engines/fairy-stockfish-nnue.wasm/stockfish.js');
 
 let engine = null;
 
