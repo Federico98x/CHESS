@@ -39,9 +39,9 @@
 // @description:vi     Nâng cao hiệu suất cờ vua của bạn với hệ thống phân tích nước đi và hỗ trợ chiến thuật hiện đại
 // @description:uk     Покращуйте свою шахову гру з використанням передової системи аналізу ходів в режимі реального часу та стратегічної підтримки
 // @description:ru     Слава Украине
-// @homepageURL https://psyyke.github.io/A.C.A.S
-// @supportURL  https://github.com/Psyyke/A.C.A.S/tree/main#why-doesnt-it-work
-// @match       https://psyyke.github.io/A.C.A.S/*
+// @homepageURL https://federico98x.github.io/CHESS/
+// @supportURL  https://github.com/Federico98x/CHESS/tree/main#why-doesnt-it-work
+// @match       https://federico98x.github.io/CHESS/*
 // @match       http://localhost:*/*
 // @match       http://127.0.0.1:*/*
 // @match       http://[::1]:*/*
@@ -124,8 +124,8 @@ Code below this point runs on any site, including the GUI.
 */
 
 const backendConfig = {
-    'hosts': { 'prod': 'psyyke.github.io', 'dev': 'localhost' },
-    'path': '/A.C.A.S/'
+    'hosts': { 'prod': 'federico98x.github.io', 'dev': 'localhost' },
+    'path': '/CHESS/'
 };
 
 const currentBackendUrlKey = 'currentBackendURL';
