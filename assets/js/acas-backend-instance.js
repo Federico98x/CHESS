@@ -347,6 +347,7 @@ class BackendInstance {
                 const primaryArrowColorHex = await this.getConfigValue(this.configKeys.primaryArrowColorHex, profile);
                 const secondaryArrowColorHex = await this.getConfigValue(this.configKeys.secondaryArrowColorHex, profile);
                 const opponentArrowColorHex = await this.getConfigValue(this.configKeys.opponentArrowColorHex, profile);
+                const dubiousArrowColorHex = await this.getConfigValue(this.configKeys.dubiousArrowColorHex, profile) || '#FFA500';
                 const moveAsFilledSquares = await this.getConfigValue(this.configKeys.moveAsFilledSquares, profile);
                 const proModeEnabled = await this.getConfigValue(this.configKeys.proModeEnabled, profile);
                 const onlySuggestPieces = await this.getConfigValue(this.configKeys.onlySuggestPieces, profile);
