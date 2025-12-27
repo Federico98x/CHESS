@@ -441,6 +441,9 @@ const configKeys = {
 };
 
 const config = {};
+const configCache = {};
+let configCacheLastUpdate = 0;
+const configCacheTimeout = 150;
 
 Object.values(configKeys).forEach(key => {
     config[key] = {
@@ -448,6 +451,21 @@ Object.values(configKeys).forEach(key => {
         set: null
     };
 });
+
+function getConfigValue(key, profile) {
+    const cacheKey = `${key}_${profile || 'default'}`;
+    const now = Date.now();
+    
+    if (configCache[cacheKey] !== undefined && 
+        (now - configCacheLastUpdate) < configCacheTimeout) {
+        return configCache[cacheKey];
+    }
+    
+    const value = config[key]?.get(profile);
+    configCache[cacheKey] = value;
+    configCacheLastUpdate = now;
+    return value;
+}
 
 let BoardDrawer = null;
 let chessBoardElem = null;
@@ -2275,6 +2293,8 @@ function getFen(onlyBasic) {
 
 function resetCachedValues() {
     chesscomVariantPlayerColorsTable = null;
+    Object.keys(configCache).forEach(key => delete configCache[key]);
+    configCacheLastUpdate = 0;
 }
 
 function fenToArray(fen) {
@@ -2347,6 +2367,9 @@ function onNewMove(mutationArr, bypassFenChangeDetection) {
     }
 }
 
+let onNewMoveDebounceTimeout = null;
+const onNewMoveDebounceDelay = 50;
+
 function observeNewMoves() {
     const boardObserver = new MutationObserver(mutationArr => {
         if(debugModeActivated) console.log(mutationArr);
@@ -2355,18 +2378,24 @@ function observeNewMoves() {
         {
             if(debugModeActivated) console.warn('Mutation is a new move:', mutationArr);
 
-            try {
-                if(domain === 'chess.org' || domain === 'worldchess.com')
-                {
-                    setTimeout(() => onNewMove(mutationArr), 250);
-                }
-                else
-                {
-                    onNewMove(mutationArr);
-                }
-            } catch(e) {
-                if(debugModeActivated) console.error('Error while running onNewMove:', e);
+            if (onNewMoveDebounceTimeout) {
+                clearTimeout(onNewMoveDebounceTimeout);
             }
+
+            onNewMoveDebounceTimeout = setTimeout(() => {
+                try {
+                    if(domain === 'chess.org' || domain === 'worldchess.com')
+                    {
+                        setTimeout(() => onNewMove(mutationArr), 250);
+                    }
+                    else
+                    {
+                        onNewMove(mutationArr);
+                    }
+                } catch(e) {
+                    if(debugModeActivated) console.error('Error while running onNewMove:', e);
+                }
+            }, onNewMoveDebounceDelay);
         }
     });
 
@@ -3785,8 +3814,7 @@ if(typeof GM_registerMenuCommand === 'function') {
 }
 
 setInterval(initializeIfSiteReady, 1000);
-// This slow rate might cause users to complain that settings aren't being applied fast enough
-setInterval(refreshSettings, 2500);
+setInterval(refreshSettings, 500);
 
 })(); // wraps around the whole userscript to enable async
 

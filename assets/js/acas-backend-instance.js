@@ -3,6 +3,9 @@ class BackendInstance {
         this.configKeys = window.CONFIG_KEYS || CONFIG_KEYS;
 
         this.config = {};
+        this.configCache = {};
+        this.configCacheTimeout = 100;
+        this.configCacheLastUpdate = 0;
 
         Object.values(this.configKeys).forEach(key => {
             this.config[key] = {
@@ -12,7 +15,31 @@ class BackendInstance {
         });
 
         this.getConfigValue = async (key, profile) => {
-            return await this.config[key]?.get(profile);
+            const cacheKey = `${key}_${profile || 'default'}`;
+            const now = Date.now();
+            
+            if (this.configCache[cacheKey] !== undefined && 
+                (now - this.configCacheLastUpdate) < this.configCacheTimeout) {
+                return this.configCache[cacheKey];
+            }
+            
+            const value = await this.config[key]?.get(profile);
+            this.configCache[cacheKey] = value;
+            this.configCacheLastUpdate = now;
+            return value;
+        }
+
+        this.invalidateConfigCache = () => {
+            this.configCache = {};
+            this.configCacheLastUpdate = 0;
+        }
+
+        this.preloadConfig = async (keys, profile) => {
+            const results = {};
+            for (const key of keys) {
+                results[key] = await this.getConfigValue(key, profile);
+            }
+            return results;
         }
 
         this.broadcastInstanceStatus = (status, text) => {
@@ -1240,6 +1267,8 @@ class BackendInstance {
     }
 
     async updateSettings(updateObj) {
+        this.invalidateConfigCache();
+        
         const profile = updateObj.data.profile.name || updateObj?.data?.value;
         const profiles = await getProfiles();
 
