@@ -537,10 +537,13 @@ function getArrowStyle(type, fill, opacity) {
     }
 };
 
+const isIOSDevice = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const commLinkStatusInterval = isIOSDevice ? 50 : 1;
+
 const CommLink = new CommLinkHandler(`frontend_${commLinkInstanceID}`, {
-    'singlePacketResponseWaitTime': 1500,
-    'maxSendAttempts': 3,
-    'statusCheckInterval': 1,
+    'singlePacketResponseWaitTime': isIOSDevice ? 3000 : 1500,
+    'maxSendAttempts': isIOSDevice ? 5 : 3,
+    'statusCheckInterval': commLinkStatusInterval,
     'silentMode': true
 });
 

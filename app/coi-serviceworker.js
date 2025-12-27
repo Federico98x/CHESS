@@ -1,5 +1,8 @@
 /*! coi-serviceworker v0.1.6 - Guido Zuidhof, licensed under MIT */
+/*! Modified for iOS/Safari compatibility */
 let coepCredentialless = false;
+const isIOSDevice = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
+
 if (typeof window === 'undefined') {
     self.addEventListener("install", () => self.skipWaiting());
     self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -57,11 +60,14 @@ if (typeof window === 'undefined') {
 
 } else {
     (() => {
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
         // You can customize the behavior of this script through a global `coi` variable.
         const coi = {
-            shouldRegister: () => true,
+            shouldRegister: () => !isIOS, // Service workers can be problematic on iOS
             shouldDeregister: () => false,
-            coepCredentialless: () => false,
+            coepCredentialless: () => isIOS || isSafari, // Use credentialless on iOS/Safari
             doReload: () => window.location.reload(),
             quiet: false,
             ...window.coi
@@ -82,7 +88,12 @@ if (typeof window === 'undefined') {
 
         // If we're already coi: do nothing. Perhaps it's due to this script doing its job, or COOP/COEP are
         // already set from the origin server. Also if the browser has no notion of crossOriginIsolated, just give up here.
-        if (window.crossOriginIsolated !== false || !coi.shouldRegister()) return;
+        if (window.crossOriginIsolated !== false || !coi.shouldRegister()) {
+            if(isIOS) {
+                console.log("iOS detected: Skipping COOP/COEP Service Worker registration (may cause SharedArrayBuffer issues)");
+            }
+            return;
+        }
 
         if (!window.isSecureContext) {
             console.log("COOP/COEP Service Worker not registered, a secure context is required.");

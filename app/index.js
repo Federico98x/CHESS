@@ -1,5 +1,6 @@
 let started = false;
 let userscriptReadyViaMessage = false;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
 window.addEventListener('message', (event) => {
     if (event.data?.type === 'ACAS_USERSCRIPT_READY' && event.data?.value === true) {
@@ -13,10 +14,30 @@ async function attemptStarting() {
     if(started)
         return;
 
+    // On iOS, wait a bit longer for userscript to initialize
+    if(isIOS && !window.isUserscriptActive && !userscriptReadyViaMessage) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
     const isUserscriptActive = window.isUserscriptActive || userscriptReadyViaMessage;
-    const isTosAccepted = isUserscriptActive
-        ? await USERSCRIPT.getValue('isTosAccepted')
-        : false;
+    let isTosAccepted = false;
+    
+    if(isUserscriptActive) {
+        try {
+            isTosAccepted = await USERSCRIPT.getValue('isTosAccepted');
+        } catch(e) {
+            console.warn('Failed to get isTosAccepted, retrying...', e);
+            // Retry once on iOS
+            if(isIOS) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                try {
+                    isTosAccepted = await USERSCRIPT.getValue('isTosAccepted');
+                } catch(e2) {
+                    console.error('Failed to get isTosAccepted after retry', e2);
+                }
+            }
+        }
+    }
 
     if(isUserscriptActive) {
         started = true;

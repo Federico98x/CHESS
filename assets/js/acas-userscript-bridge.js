@@ -1,3 +1,6 @@
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const MESSAGE_TIMEOUT = isIOS ? 2000 : 500;
+
 function messageUserscript(type, args = []) {
     return new Promise((resolve, reject) => {
         const messageId = getUniqueID();
@@ -17,8 +20,8 @@ function messageUserscript(type, args = []) {
         timeoutId = setTimeout(() => {
             window.removeEventListener('message', listener);
             console.error(type, args);
-            reject(new Error('Response timed out after 500ms'));
-        }, 500);
+            reject(new Error(`Response timed out after ${MESSAGE_TIMEOUT}ms`));
+        }, MESSAGE_TIMEOUT);
 
         window.postMessage({
             sender: 'GUI',

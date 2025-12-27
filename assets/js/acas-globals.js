@@ -701,6 +701,9 @@ function getUniqueID() {
 }
 
 async function isEngineIncompatible(engineName, profileName, skipSabCheck) {
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    
+    // Maia2 has special requirements
     if(engineName === 'maia2') return window?.SharedArrayBuffer ? true : false;
 
     async function check(pN) {
@@ -715,7 +718,14 @@ async function isEngineIncompatible(engineName, profileName, skipSabCheck) {
         const profileObj = await getProfile(pN);
         const profileChessEngine = engineName || profileObj.config.chessEngine;
         
-        return (skipSabCheck || !window?.SharedArrayBuffer) && enginesRequiringSAB.includes(profileChessEngine);
+        // On iOS, SharedArrayBuffer is often not available due to service worker issues
+        const sabUnavailable = !window?.SharedArrayBuffer;
+        
+        if(isIOS && sabUnavailable && enginesRequiringSAB.includes(profileChessEngine)) {
+            console.warn(`iOS detected: Engine "${profileChessEngine}" requires SharedArrayBuffer which is not available. Consider using stockfish-8 or lozza instead.`);
+        }
+        
+        return (skipSabCheck || sabUnavailable) && enginesRequiringSAB.includes(profileChessEngine);
     }
 
     if(profileName) return await check(profileName);
@@ -733,6 +743,15 @@ async function ensureSabParam() {
     const url = new URL(window.location.href);
     const params = new URLSearchParams(url.search);
     const hasSabParam = params.has('sab');
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    
+    // On iOS, skip the SAB param redirect as it often causes issues
+    if(isIOS) {
+        if(!window?.SharedArrayBuffer) {
+            console.log('iOS detected without SharedArrayBuffer support. Some engines may not work.');
+        }
+        return;
+    }
 
     if(!hasSabParam && await isEngineIncompatible(null, null, true)) {
         params.set('sab', 'true');

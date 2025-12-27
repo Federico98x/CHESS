@@ -42,21 +42,32 @@ async function LOAD_LEGACY_GM_SUPPORT() {
         },
     };
 
-    setInterval(async () => {
-        const keys = await GM.listValues();
+    const syncInterval = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 50 : 1;
+    
+    async function syncCache() {
+        try {
+            const keys = await GM.listValues();
 
-        // Load existing
-        for(const key of keys) {
-            gmCache[key] = await GM.getValue(key);
-        }
-
-        // Remove old
-        for(const key in gmCache) {
-            if(!keys.includes(key)) {
-                delete gmCache[key];
+            // Load existing
+            for(const key of keys) {
+                gmCache[key] = await GM.getValue(key);
             }
+
+            // Remove old
+            for(const key in gmCache) {
+                if(!keys.includes(key)) {
+                    delete gmCache[key];
+                }
+            }
+        } catch(e) {
+            console.warn('LegacyGM sync error:', e);
         }
-    }, 1);
+    }
+    
+    // Initial sync before interval starts
+    await syncCache();
+    
+    setInterval(syncCache, syncInterval);
 
 
     // Define legacy functions
