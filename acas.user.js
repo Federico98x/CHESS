@@ -85,8 +85,8 @@
 // @require     https://update.greasyfork.org/scripts/534637/LegacyGMjs.js?acasv=2
 // @require     https://update.greasyfork.org/scripts/470418/CommLinkjs.js?acasv=2
 // @require     https://update.greasyfork.org/scripts/470417/UniversalBoardDrawerjs.js?acasv=1
-// @icon        https://raw.githubusercontent.com/Psyyke/A.C.A.S/main/assets/images/logo-192.png
-// @version     2.3.6
+// @icon        https://raw.githubusercontent.com/Federico98x/CHESS/main/assets/images/logo-192.png
+// @version     2.3.7
 // @namespace   HKR
 // @author      HKR
 // @license     GPL-3.0
@@ -300,6 +300,9 @@ function exposeViaMessages() {
                 : instanceVars[key].get(instanceId);
 
             window.postMessage({ messageId, value: result }, '*');
+        },
+        USERSCRIPT_checkActive: (args, messageId) => {
+            window.postMessage({ messageId, value: true }, '*');
         }
     };
 
@@ -308,10 +311,15 @@ function exposeViaMessages() {
         if(handler) handler(event.data.args, event.data.messageId);
     });
 
-    const script = document.createElement('script');
-    script.innerHTML = 'window.isUserscriptActive = true;';
+    try {
+        const script = document.createElement('script');
+        script.innerHTML = 'window.isUserscriptActive = true;';
+        (document.head || document.documentElement).appendChild(script);
+    } catch(e) {
+        console.warn('A.C.A.S: Inline script blocked by CSP, using message-based detection');
+    }
 
-    (document.head || document.documentElement).appendChild(script);
+    window.postMessage({ type: 'ACAS_USERSCRIPT_READY', value: true }, '*');
 }
 
 function exposeViaUnsafe() {

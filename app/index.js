@@ -1,10 +1,19 @@
 let started = false;
+let userscriptReadyViaMessage = false;
+
+window.addEventListener('message', (event) => {
+    if (event.data?.type === 'ACAS_USERSCRIPT_READY' && event.data?.value === true) {
+        userscriptReadyViaMessage = true;
+        window.isUserscriptActive = true;
+        attemptStarting();
+    }
+});
 
 async function attemptStarting() {
     if(started)
         return;
 
-    const isUserscriptActive = window.isUserscriptActive;
+    const isUserscriptActive = window.isUserscriptActive || userscriptReadyViaMessage;
     const isTosAccepted = isUserscriptActive
         ? await USERSCRIPT.getValue('isTosAccepted')
         : false;

@@ -42,6 +42,21 @@ function createInstanceVar(key) {
     };
 }
 
+async function checkUserscriptActive() {
+    try {
+        const result = await messageUserscript('USERSCRIPT_checkActive', []);
+        return result === true;
+    } catch(e) {
+        return false;
+    }
+}
+
+window.addEventListener('message', (event) => {
+    if (event.data?.type === 'ACAS_USERSCRIPT_READY' && event.data?.value === true) {
+        window.isUserscriptActive = true;
+    }
+});
+
 // Do not continue if userscript has declared the object itself.
 // This happens when unsafeWindow is supported by the manager.
 // It allows for direct access which is faster.
@@ -64,9 +79,7 @@ if(typeof window?.USERSCRIPT !== 'object') {
                 messageId: null,
                 args: [key, value]
             }, '*');
-        }
+        },
+        checkActive: checkUserscriptActive
     };
-    // window.isUserscriptActive = true; // Removed: The userscript itself should set this to true upon successful injection.
-} else {
-    // window.isUserscriptActive = true; // Removed: The userscript itself should set this to true upon successful injection.
 }
