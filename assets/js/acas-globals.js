@@ -9,7 +9,13 @@ let fullTransObj = null;
 
 const log = {
     info: (...message) => console.log(`[A.C.A.S]%c ${message.join(' ')}`, 'color: #67a9ef;'),
-    success: (...message) => console.log(`[A.C.A.S]%c ${message.join(' ')}`, 'color: #67f08a;')
+    success: (...message) => console.log(`[A.C.A.S]%c ${message.join(' ')}`, 'color: #67f08a;'),
+    warning: (...message) => console.warn(`[A.C.A.S] ${message.join(' ')}`),
+    error: (context, error, additionalInfo) => {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : '';
+        console.error(`[A.C.A.S][${context}] ${errorMsg}`, additionalInfo || '', stack ? `\nStack: ${stack}` : '');
+    }
 };
 
 function geoGebraDotCommands(data) {

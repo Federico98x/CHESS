@@ -566,7 +566,6 @@ CommLink.registerListener(`backend_${commLinkInstanceID}`, packet => {
                 if(isAutoMove && (!isAutoMoveAfterUser || matchFirstSuggestionGiven)) {
                     const existingAutomoves = activeAutomoves.filter(x => x.move.active);
 
-                    // Stop all existing automoves
                     for(const x of existingAutomoves) {
                         x.move.stop();
                     }
@@ -592,6 +591,7 @@ CommLink.registerListener(`backend_${commLinkInstanceID}`, packet => {
                 return true;
         }
     } catch(e) {
+        if(debugModeActivated) console.error('[A.C.A.S][CommLink]', e?.message || e, { command: packet?.command });
         return null;
     }
 });

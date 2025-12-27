@@ -1,65 +1,6 @@
 class BackendInstance {
     constructor(domain, instanceID, chessVariant, onLoadCallbackFunction) {
-        this.configKeys = {
-            'engineElo': 'engineElo',
-            'moveSuggestionAmount': 'moveSuggestionAmount',
-            'arrowOpacity': 'arrowOpacity',
-            'displayMovesOnExternalSite': 'displayMovesOnExternalSite',
-            'showMoveGhost': 'showMoveGhost',
-            'showOpponentMoveGuess': 'showOpponentMoveGuess',
-            'showOpponentMoveGuessConstantly': 'showOpponentMoveGuessConstantly',
-            'onlyShowTopMoves': 'onlyShowTopMoves',
-            'maxMovetime': 'maxMovetime',
-            'chessVariant': 'chessVariant',
-            'chessEngine': 'chessEngine',
-            'lc0Weight': 'lc0Weight',
-            'engineNodes': 'engineNodes',
-            'chessFont': 'chessFont',
-            'useChess960': 'useChess960',
-            'onlyCalculateOwnTurn': 'onlyCalculateOwnTurn',
-            'dualEngineValidation': 'dualEngineValidation',
-            'dualEnginePrimaryProfile': 'dualEnginePrimaryProfile',
-            'dualEngineValidatorProfile': 'dualEngineValidatorProfile',
-            'dubiousArrowColorHex': 'dubiousArrowColorHex',
-            'ttsVoiceEnabled': 'ttsVoiceEnabled',
-            'ttsVoiceName': 'ttsVoiceName',
-            'ttsVoiceSpeed': 'ttsVoiceSpeed',
-            'chessEngineProfile': 'chessEngineProfile',
-            'primaryArrowColorHex': 'primaryArrowColorHex',
-            'secondaryArrowColorHex': 'secondaryArrowColorHex',
-            'opponentArrowColorHex': 'opponentArrowColorHex',
-            'reverseSide': 'reverseSide',
-            'engineEnabled': 'engineEnabled',
-            'autoMove': 'autoMove',
-            'autoMoveLegit': 'autoMoveLegit',
-            'autoMoveRandom': 'autoMoveRandom',
-            'autoMoveAfterUser': 'autoMoveAfterUser',
-            'legitModeType': 'legitModeType',
-            'moveDisplayDelay': 'moveDisplayDelay',
-            'renderSquarePlayer': 'renderSquarePlayer',
-            'renderSquareEnemy': 'renderSquareEnemy',
-            'renderSquareContested': 'renderSquareContested',
-            'renderSquareSafe': 'renderSquareSafe',
-            'renderPiecePlayerCapture': 'renderPiecePlayerCapture',
-            'renderPieceEnemyCapture': 'renderPieceEnemyCapture',
-            'renderOnExternalSite': 'renderOnExternalSite',
-            'feedbackOnExternalSite': 'feedbackOnExternalSite',
-            'enableMoveRatings': 'enableMoveRatings',
-            'enableEnemyFeedback': 'enableEnemyFeedback',
-            'feedbackEngineDepth': 'feedbackEngineDepth',
-            'enableAdvancedElo': 'enableAdvancedElo',
-            'advancedElo': 'advancedElo',
-            'advancedEloDepth': 'advancedEloDepth',
-            'advancedEloSkill': 'advancedEloSkill',
-            'advancedEloMaxError': 'advancedEloMaxError',
-            'advancedEloProbability': 'advancedEloProbability',
-            'advancedEloHash': 'advancedEloHash',
-            'advancedEloThreads': 'advancedEloThreads',
-            'moveAsFilledSquares': 'moveAsFilledSquares',
-            'proModeEnabled': 'proModeEnabled',
-            'movesOnDemand': 'movesOnDemand',
-            'onlySuggestPieces': 'onlySuggestPieces'
-        };
+        this.configKeys = window.CONFIG_KEYS || CONFIG_KEYS;
 
         this.config = {};
 
@@ -217,7 +158,7 @@ class BackendInstance {
 
                 return true;
             } catch(e) {
-                console.error('Instance:', this.domain, this.instanceID, e);
+                log.error(`Instance[${this.instanceID}]`, e, { domain: this.domain, packet });
                 return null;
             }
         });
@@ -237,6 +178,50 @@ class BackendInstance {
         };
 
         this.loadEngines();
+        this.startMemoryCleanupInterval();
+    }
+
+    startMemoryCleanupInterval() {
+        this.memoryCleanupInterval = setInterval(() => {
+            if (this.instanceClosed) {
+                clearInterval(this.memoryCleanupInterval);
+                return;
+            }
+            this.cleanupMemory();
+        }, 60000);
+    }
+
+    cleanupMemory() {
+        Object.keys(this.dualEngineFENResults).forEach(fen => {
+            if (fen !== this.currentFen) {
+                delete this.dualEngineFENResults[fen];
+            }
+        });
+
+        Object.keys(this.pV).forEach(profileName => {
+            const profile = this.pV[profileName];
+            if (!profile) return;
+
+            if (profile.pastMoveObjects?.length > 50) {
+                profile.pastMoveObjects = profile.pastMoveObjects.slice(-25);
+            }
+
+            if (profile.evalHistory?.length > 30) {
+                profile.evalHistory = profile.evalHistory.slice(-15);
+            }
+
+            if (profile.pendingCalculations?.length > 20) {
+                profile.pendingCalculations = profile.pendingCalculations.filter(x => !x.finished).slice(-10);
+            }
+        });
+
+        if (this.unprocessedPackets?.length > 50) {
+            this.unprocessedPackets = this.unprocessedPackets.slice(-25);
+        }
+
+        if (this.moveDiffHistory?.length > 10) {
+            this.moveDiffHistory = this.moveDiffHistory.slice(-5);
+        }
     }
 
     async loadEngines() {
@@ -2284,7 +2269,7 @@ class BackendInstance {
             try {
                 this.engineMessageHandler(msg, profileName);
             } catch(e) {
-                console.error('Engine', this.instanceID, profileName, 'error:', e);
+                log.error(`EngineMessageHandler[${profileName}]`, e, { instanceID: this.instanceID, msg: msg?.substring?.(0, 200) });
             }
         };
 
@@ -2973,6 +2958,16 @@ class BackendInstance {
     close() {
         this.instanceClosed = true;
 
+        if (this.memoryCleanupInterval) {
+            clearInterval(this.memoryCleanupInterval);
+            this.memoryCleanupInterval = null;
+        }
+
+        if (this.validationTimeout) {
+            clearTimeout(this.validationTimeout);
+            this.validationTimeout = null;
+        }
+
         this?.killEngines();
 
         this?.CommLink?.kill();
@@ -2984,6 +2979,11 @@ class BackendInstance {
 
         this?.BoardDrawer?.terminate();
         this?.instanceElem?.remove();
+
+        this.dualEngineFENResults = {};
+        this.unprocessedPackets = [];
+        this.pV = {};
+        this.engines = [];
 
         removeInstance(this);
     }
