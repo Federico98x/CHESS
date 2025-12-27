@@ -1,9 +1,11 @@
 import * as ort from '../../../../assets/libraries/onnxruntime-web/ort.wasm.bundle.min.js';
 import { preprocess, mirrorMove, allPossibleMovesReversed, parseSetOption, parsePosition, policyToUciLines } from './utils.js';
 
+const BASE_URL = new URL('./', import.meta.url).href;
+
 export default class Maia {
 	constructor(modelUrl, ChessLib, board) {
-		this.modelUrl = modelUrl;
+		this.modelUrl = BASE_URL + modelUrl;
 		this.ChessLib = ChessLib;
 		this.board = board;
 		this.ready = false;

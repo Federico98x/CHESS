@@ -1,6 +1,6 @@
 
 var Stockfish = (function() {
-  var _scriptDir = '/CHESS/app/assets/engines/fairy-stockfish-nnue.wasm/stockfish.js';
+  var _scriptDir = typeof document !== 'undefined' && document.currentScript ? document.currentScript.src : (typeof self !== 'undefined' && self.location ? self.location.href : '');
   if (typeof __filename !== 'undefined') _scriptDir = _scriptDir || __filename;
   return (
 function(Stockfish) {

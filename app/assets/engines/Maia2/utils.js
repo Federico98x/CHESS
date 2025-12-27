@@ -3,10 +3,11 @@ let allPossibleMovesReversed = null;
 let eloDict = null;
 
 async function loadMoves() {
-	const movesRes = await fetch('data/all_moves.json');
+	const baseUrl = new URL('./', import.meta.url).href;
+	const movesRes = await fetch(baseUrl + 'data/all_moves.json');
 	allPossibleMoves = await movesRes.json();
 
-	const movesRevRes = await fetch('data/all_moves_reversed.json');
+	const movesRevRes = await fetch(baseUrl + 'data/all_moves_reversed.json');
 	allPossibleMovesReversed = await movesRevRes.json();
 
 	eloDict = createEloDict();
