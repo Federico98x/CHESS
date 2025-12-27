@@ -319,7 +319,19 @@ function exposeViaMessages() {
         console.warn('A.C.A.S: Inline script blocked by CSP, using message-based detection');
     }
 
-    window.postMessage({ type: 'ACAS_USERSCRIPT_READY', value: true }, '*');
+    function sendReadyMessage() {
+        window.postMessage({ type: 'ACAS_USERSCRIPT_READY', value: true }, '*');
+    }
+
+    sendReadyMessage();
+    
+    const readyInterval = setInterval(sendReadyMessage, 100);
+    setTimeout(() => clearInterval(readyInterval), 5000);
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', sendReadyMessage);
+    }
+    window.addEventListener('load', sendReadyMessage);
 }
 
 function exposeViaUnsafe() {
