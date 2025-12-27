@@ -125,7 +125,7 @@ Code below this point runs on any site, including the GUI.
 
 const backendConfig = {
     'hosts': { 'prod': 'federico98x.github.io', 'dev': 'localhost' },
-    'path': '/CHESS/'
+    'path': '/CHESS/app/'
 };
 
 const currentBackendUrlKey = 'currentBackendURL';

@@ -66,7 +66,7 @@ if(typeof window?.USERSCRIPT !== 'object') {
             }, '*');
         }
     };
-    window.isUserscriptActive = true;
+    // window.isUserscriptActive = true; // Removed: The userscript itself should set this to true upon successful injection.
 } else {
-    window.isUserscriptActive = true;
+    // window.isUserscriptActive = true; // Removed: The userscript itself should set this to true upon successful injection.
 }

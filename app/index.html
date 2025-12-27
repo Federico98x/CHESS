@@ -11,7 +11,13 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="manifest" href="manifest.json" />
 		<script>
-		const s = document.createElement('script');s.src='coi-serviceworker.js';new URLSearchParams(location.search).get('sab')==='true'?document.head.appendChild(s):'serviceWorker'in navigator&&navigator.serviceWorker.getRegistrations().then(r=>r.forEach(e=>e.unregister()));
+		const s = document.createElement('script');
+		s.src = 'coi-serviceworker.js';
+		// Only load coi-serviceworker if sab=true is present. 
+		// Unregistration of service workers is now handled more carefully to avoid breaking WASM engines.
+		if (new URLSearchParams(location.search).get('sab') === 'true') {
+			document.head.appendChild(s);
+		}
 		window.dataLayer = window.dataLayer || [];
 		function gtag(){dataLayer.push(arguments);}
 		// Deny personalization by default <3

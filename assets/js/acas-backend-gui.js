@@ -191,6 +191,7 @@ const chessEngineInput = document.querySelector('input[data-key="chessEngine"]')
 if(window?.SharedArrayBuffer) {
     [...document.querySelectorAll('.requires-sab')].forEach(x => x.classList.remove('requires-sab'));
 } else {
+    /*
     if('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then((registrations) => {
             registrations.forEach((registration) => {
@@ -198,6 +199,7 @@ if(window?.SharedArrayBuffer) {
             });
         });
     }
+    */
 
     ['advancedEloThreads', 'advancedEloHash']
         .forEach(x => {
