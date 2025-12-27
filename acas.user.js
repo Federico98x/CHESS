@@ -173,7 +173,7 @@ function isRunningOnBackend(skipGM) {
 }
 
 // KEEP THESE AS FALSE ON PRODUCTION
-const debugModeActivated = false;
+const debugModeActivated = true;
 const onlyUseDevelopmentBackend = false;
 
 let domain = window.location.hostname.replace('www.', '');
