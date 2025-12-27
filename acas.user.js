@@ -2034,14 +2034,6 @@ function isBoardDrawerNeeded() {
     return false;
 }
 
-function getConfigValue(key, profile) {
-    return config[key]?.get(profile);
-}
-
-function setConfigValue(key, val) {
-    return config[key]?.set(val);
-}
-
 function squeezeEmptySquares(fenStr) {
     return fenStr.replace(/1+/g, match => match.length);
 }
