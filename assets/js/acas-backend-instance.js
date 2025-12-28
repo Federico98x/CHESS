@@ -2918,7 +2918,7 @@ class BackendInstance {
                 toast.error(msg);
             }
 
-            (adsbygoogle = window.adsbygoogle || []).push({});
+            if(typeof window.adsbygoogle !== 'undefined') { (adsbygoogle = window.adsbygoogle || []).push({}); }
 
             this.guiUpdater();
         } catch(e) { 
