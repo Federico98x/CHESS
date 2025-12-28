@@ -1,11 +1,51 @@
 let started = false;
 let userscriptReadyViaMessage = false;
+let MainCommLink = null;
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+function initCommLink() {
+    if (MainCommLink) return;
+    if (typeof USERSCRIPT !== 'object') return;
+    
+    MainCommLink = new CommLinkHandler('mum', {
+        'singlePacketResponseWaitTime': 1500,
+        'maxSendAttempts': 3,
+        'statusCheckInterval': 1,
+        'silentMode': true,
+        'functions': {
+            'getValue': USERSCRIPT.getValue,
+            'setValue': USERSCRIPT.setValue,
+            'deleteValue': USERSCRIPT.deleteValue,
+            'listValues': USERSCRIPT.listValues,
+        }
+    });
+
+    MainCommLink.registerListener('mum', packet => {
+        try {
+            switch(packet.command) {
+                case 'ping':
+                    return `pong (took ${Date.now() - packet.date}ms)`;
+                case 'createInstance':
+                    const data = packet.data;
+
+                    createInstance(data.domain, data.instanceID, data.chessVariant);
+        
+                    return true;
+            }
+        } catch(e) {
+            console.error(e);
+            return null;
+        }
+    });
+    
+    log.info('CommLink initialized and listening for instance calls...');
+}
 
 window.addEventListener('message', (event) => {
     if (event.data?.type === 'ACAS_USERSCRIPT_READY' && event.data?.value === true) {
         userscriptReadyViaMessage = true;
         window.isUserscriptActive = true;
+        initCommLink();
         attemptStarting();
     }
 });
@@ -43,6 +83,7 @@ async function attemptStarting() {
         started = true;
 
         displayNoUserscriptNotification(true);
+        initCommLink();
     }
         
     if(!isUserscriptActive) {
@@ -100,36 +141,7 @@ async function attemptStarting() {
         else if(autoMoveCheckbox?.checked)
             autoMoveCheckbox.click();
 
-        const MainCommLink = new CommLinkHandler('mum', {
-            'singlePacketResponseWaitTime': 1500,
-            'maxSendAttempts': 3,
-            'statusCheckInterval': 1,
-            'silentMode': true,
-            'functions': {
-                'getValue': USERSCRIPT.getValue,
-                'setValue': USERSCRIPT.setValue,
-                'deleteValue': USERSCRIPT.deleteValue,
-                'listValues': USERSCRIPT.listValues,
-            }
-        });
-    
-        MainCommLink.registerListener('mum', packet => {
-            try {
-                switch(packet.command) {
-                    case 'ping':
-                        return `pong (took ${Date.now() - packet.date}ms)`;
-                    case 'createInstance':
-                        const data = packet.data;
-    
-                        createInstance(data.domain, data.instanceID, data.chessVariant);
-        
-                        return true;
-                }
-            } catch(e) {
-                console.error(e);
-                return null;
-            }
-        });
+        initCommLink();
     }
 
     async function initDbValue(name, value) {

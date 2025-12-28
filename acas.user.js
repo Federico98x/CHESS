@@ -132,7 +132,6 @@ const currentBackendUrlKey = 'currentBackendURL';
 const currentBackendUrl = typeof GM_getValue === 'function'
     ? GM_getValue(currentBackendUrlKey)
     : await GM.getValue(currentBackendUrlKey);
-const isBackendUrlUpToDate = Object.values(backendConfig.hosts).some(x => currentBackendUrl?.includes(x));
 
 function constructBackendURL(host) {
     const protocol = window.location.protocol + '//';
@@ -143,6 +142,19 @@ function constructBackendURL(host) {
 
     return protocol + (host || hosts?.prod) + path;
 }
+
+function shouldUpdateBackendUrl() {
+    if (!currentBackendUrl) return true;
+    
+    const storedUrlIsLocalhost = currentBackendUrl?.includes('localhost') || 
+                                  currentBackendUrl?.includes('127.0.0.1') || 
+                                  currentBackendUrl?.includes('[::1]');
+    const storedUrlIsProd = currentBackendUrl?.includes(backendConfig.hosts.prod);
+    
+    return !storedUrlIsLocalhost && !storedUrlIsProd;
+}
+
+const isBackendUrlUpToDate = !shouldUpdateBackendUrl();
 
 function isRunningOnBackend(skipGM) {
     const hostsArr = Object.values(backendConfig.hosts);
@@ -173,7 +185,7 @@ function isRunningOnBackend(skipGM) {
 }
 
 // KEEP THESE AS FALSE ON PRODUCTION
-const debugModeActivated = true;
+const debugModeActivated = false;
 const onlyUseDevelopmentBackend = false;
 
 let domain = window.location.hostname.replace('www.', '');
@@ -217,8 +229,8 @@ function getCurrentBackendURL(skipGmStorage) {
     }
 
     const gmStorageUrl = GM_getValue(currentBackendUrlKey);
-
-    if(skipGmStorage || !gmStorageUrl) {
+    
+    if(skipGmStorage || !gmStorageUrl || !isBackendUrlUpToDate) {
         return constructBackendURL();
     }
 
@@ -553,8 +565,8 @@ const isIOSDevice = /iPhone|iPad|iPod/.test(navigator.userAgent);
 const commLinkStatusInterval = isIOSDevice ? 50 : 1;
 
 const CommLink = new CommLinkHandler(`frontend_${commLinkInstanceID}`, {
-    'singlePacketResponseWaitTime': isIOSDevice ? 3000 : 1500,
-    'maxSendAttempts': isIOSDevice ? 5 : 3,
+    'singlePacketResponseWaitTime': isIOSDevice ? 3000 : 2000,
+    'maxSendAttempts': isIOSDevice ? 5 : 4,
     'statusCheckInterval': commLinkStatusInterval,
     'silentMode': true
 });
