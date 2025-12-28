@@ -1,6 +1,19 @@
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 const MESSAGE_TIMEOUT = isIOS ? 2000 : 500;
 
+let userscriptPending = false;
+
+window.addEventListener('message', (event) => {
+    if (event.data?.type === 'ACAS_USERSCRIPT_PENDING' && event.data?.value === true) {
+        userscriptPending = true;
+        window.USERSCRIPT_PENDING = true;
+    }
+    if (event.data?.type === 'ACAS_USERSCRIPT_READY' && event.data?.value === true) {
+        window.isUserscriptActive = true;
+        userscriptPending = false;
+    }
+});
+
 function messageUserscript(type, args = []) {
     return new Promise((resolve, reject) => {
         const messageId = getUniqueID();
@@ -53,12 +66,6 @@ async function checkUserscriptActive() {
         return false;
     }
 }
-
-window.addEventListener('message', (event) => {
-    if (event.data?.type === 'ACAS_USERSCRIPT_READY' && event.data?.value === true) {
-        window.isUserscriptActive = true;
-    }
-});
 
 // Do not continue if userscript has declared the object itself.
 // This happens when unsafeWindow is supported by the manager.

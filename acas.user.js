@@ -114,6 +114,30 @@ DANGER ZONE - DO NOT PROCEED IF YOU DON'T KNOW WHAT YOU'RE DOING*\
 //////////////////////////////////////////////////////////////////
 DANGER ZONE - DO NOT PROCEED IF YOU DON'T KNOW WHAT YOU'RE DOING*/
 
+// IMMEDIATE: Signal userscript presence before async operations
+// This prevents race conditions where page scripts check before userscript is ready
+(function() {
+    const backendHosts = ['federico98x.github.io', 'localhost', '127.0.0.1', '[::1]'];
+    const isOnBackend = backendHosts.some(host => 
+        window.location.host === host || window.location.host.startsWith(host + ':')
+    );
+    
+    if (isOnBackend && typeof unsafeWindow === 'object') {
+        unsafeWindow.USERSCRIPT_PENDING = true;
+        unsafeWindow.isUserscriptActive = 'pending';
+    }
+    
+    if (isOnBackend) {
+        function sendPendingMessage() {
+            window.postMessage({ type: 'ACAS_USERSCRIPT_PENDING', value: true }, '*');
+        }
+        sendPendingMessage();
+        const pendingInterval = setInterval(sendPendingMessage, 50);
+        setTimeout(() => clearInterval(pendingInterval), 3000);
+        window.ACAS_STOP_PENDING_MESSAGES = () => clearInterval(pendingInterval);
+    }
+})();
+
 (async () => { await LOAD_LEGACY_GM_SUPPORT();
 /*
 ┏┓┓ ┏┓┳┓┏┓┓
@@ -325,10 +349,14 @@ function exposeViaMessages() {
 
     try {
         const script = document.createElement('script');
-        script.innerHTML = 'window.isUserscriptActive = true;';
+        script.innerHTML = 'window.isUserscriptActive = true; if(window.ACAS_STOP_PENDING_MESSAGES) window.ACAS_STOP_PENDING_MESSAGES();';
         (document.head || document.documentElement).appendChild(script);
     } catch(e) {
         console.warn('A.C.A.S: Inline script blocked by CSP, using message-based detection');
+    }
+
+    if (typeof window.ACAS_STOP_PENDING_MESSAGES === 'function') {
+        window.ACAS_STOP_PENDING_MESSAGES();
     }
 
     function sendReadyMessage() {
@@ -349,6 +377,10 @@ function exposeViaMessages() {
 function exposeViaUnsafe() {
     if(typeof unsafeWindow !== 'object') return;
 
+    if (typeof unsafeWindow.ACAS_STOP_PENDING_MESSAGES === 'function') {
+        unsafeWindow.ACAS_STOP_PENDING_MESSAGES();
+    }
+
     unsafeWindow.USERSCRIPT = {
         'getValue': val => GM_getValue(val),
         'setValue': (val, data) => GM_setValue(val, data),
@@ -359,6 +391,7 @@ function exposeViaUnsafe() {
     };
 
     unsafeWindow.isUserscriptActive = true;
+    unsafeWindow.USERSCRIPT_PENDING = false;
 }
 
 if(isRunningOnBackend()) {

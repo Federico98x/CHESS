@@ -1,5 +1,6 @@
 let started = false;
 let userscriptReadyViaMessage = false;
+let userscriptPendingViaMessage = false;
 let MainCommLink = null;
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
@@ -42,24 +43,49 @@ function initCommLink() {
 }
 
 window.addEventListener('message', (event) => {
+    if (event.data?.type === 'ACAS_USERSCRIPT_PENDING' && event.data?.value === true) {
+        userscriptPendingViaMessage = true;
+        window.USERSCRIPT_PENDING = true;
+    }
     if (event.data?.type === 'ACAS_USERSCRIPT_READY' && event.data?.value === true) {
         userscriptReadyViaMessage = true;
+        userscriptPendingViaMessage = false;
         window.isUserscriptActive = true;
         initCommLink();
         attemptStarting();
     }
 });
 
+async function waitForUserscript(maxWaitMs = 5000) {
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitMs) {
+        if (window.isUserscriptActive === true || 
+            (typeof window.USERSCRIPT === 'object' && window.USERSCRIPT !== null)) {
+            return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return false;
+}
+
 async function attemptStarting() {
     if(started)
         return;
+
+    const isPending = window.USERSCRIPT_PENDING || userscriptPendingViaMessage || 
+                      window.isUserscriptActive === 'pending';
+    
+    if (isPending && !window.isUserscriptActive) {
+        log.info('Userscript pending, waiting for full initialization...');
+        await waitForUserscript(5000);
+    }
 
     // On iOS, wait a bit longer for userscript to initialize
     if(isIOS && !window.isUserscriptActive && !userscriptReadyViaMessage) {
         await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    const isUserscriptActive = window.isUserscriptActive || userscriptReadyViaMessage;
+    const isUserscriptActive = window.isUserscriptActive === true || userscriptReadyViaMessage;
     let isTosAccepted = false;
     
     if(isUserscriptActive) {
