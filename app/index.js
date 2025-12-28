@@ -2,7 +2,7 @@ let started = false;
 let userscriptReadyViaMessage = false;
 let userscriptPendingViaMessage = false;
 let MainCommLink = null;
-const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const isIOSDevice = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
 console.log('[ACAS GUI] Initial state - USERSCRIPT:', typeof window.USERSCRIPT, 'isUserscriptActive:', window.isUserscriptActive, 'USERSCRIPT_PENDING:', window.USERSCRIPT_PENDING);
 
@@ -88,7 +88,7 @@ async function attemptStarting() {
     }
 
     // On iOS, wait a bit longer for userscript to initialize
-    if(isIOS && !window.isUserscriptActive && !userscriptReadyViaMessage) {
+    if(isIOSDevice && !window.isUserscriptActive && !userscriptReadyViaMessage) {
         await new Promise(resolve => setTimeout(resolve, 500));
     }
 
@@ -103,7 +103,7 @@ async function attemptStarting() {
         } catch(e) {
             console.warn('Failed to get isTosAccepted, retrying...', e);
             // Retry once on iOS
-            if(isIOS) {
+            if(isIOSDevice) {
                 await new Promise(resolve => setTimeout(resolve, 300));
                 try {
                     isTosAccepted = await USERSCRIPT.getValue('isTosAccepted');
