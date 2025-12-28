@@ -122,20 +122,25 @@ DANGER ZONE - DO NOT PROCEED IF YOU DON'T KNOW WHAT YOU'RE DOING*/
         window.location.host === host || window.location.host.startsWith(host + ':')
     );
     
-    if (isOnBackend && typeof unsafeWindow === 'object') {
-        unsafeWindow.USERSCRIPT_PENDING = true;
-        unsafeWindow.isUserscriptActive = 'pending';
-    }
+    console.log('[ACAS Immediate] Host:', window.location.host, 'isOnBackend:', isOnBackend);
     
-    if (isOnBackend) {
-        function sendPendingMessage() {
-            window.postMessage({ type: 'ACAS_USERSCRIPT_PENDING', value: true }, '*');
-        }
-        sendPendingMessage();
-        const pendingInterval = setInterval(sendPendingMessage, 50);
-        setTimeout(() => clearInterval(pendingInterval), 3000);
-        window.ACAS_STOP_PENDING_MESSAGES = () => clearInterval(pendingInterval);
+    if (!isOnBackend) return;
+    
+    const pageWindow = (typeof unsafeWindow === 'object') ? unsafeWindow : window;
+    console.log('[ACAS Immediate] Using pageWindow:', typeof unsafeWindow === 'object' ? 'unsafeWindow' : 'window');
+    
+    pageWindow.USERSCRIPT_PENDING = true;
+    pageWindow.isUserscriptActive = 'pending';
+    
+    function sendPendingMessage() {
+        pageWindow.postMessage({ type: 'ACAS_USERSCRIPT_PENDING', value: true }, '*');
     }
+    sendPendingMessage();
+    const pendingInterval = setInterval(sendPendingMessage, 50);
+    setTimeout(() => clearInterval(pendingInterval), 3000);
+    pageWindow.ACAS_STOP_PENDING_MESSAGES = () => clearInterval(pendingInterval);
+    
+    console.log('[ACAS Immediate] Pending state set, messages started');
 })();
 
 (async () => { await LOAD_LEGACY_GM_SUPPORT();
@@ -209,7 +214,7 @@ function isRunningOnBackend(skipGM) {
 }
 
 // KEEP THESE AS FALSE ON PRODUCTION
-const debugModeActivated = false;
+const debugModeActivated = true;
 const onlyUseDevelopmentBackend = false;
 
 let domain = window.location.hostname.replace('www.', '');
@@ -299,35 +304,37 @@ const instanceVars = {
 };
 
 function exposeViaMessages() {
+    const pageWindow = (typeof unsafeWindow === 'object') ? unsafeWindow : window;
+    
     const handlers = {
         USERSCRIPT_getValue: (args, messageId) => {
             const [key] = args;
             const value = GM_getValue(key);
-            window.postMessage({ messageId, value }, '*');
+            pageWindow.postMessage({ messageId, value }, '*');
         },
         USERSCRIPT_setValue: (args, messageId) => {
             const [key, value] = args;
             GM_setValue(key, value);
-            window.postMessage({ messageId, value: true }, '*');
+            pageWindow.postMessage({ messageId, value: true }, '*');
         },
         USERSCRIPT_deleteValue: (args, messageId) => {
             const [key] = args;
             GM_deleteValue(key);
-            window.postMessage({ messageId, value: true }, '*');
+            pageWindow.postMessage({ messageId, value: true }, '*');
         },
         USERSCRIPT_listValues: (args, messageId) => {
             const value = GM_listValues();
-            window.postMessage({ messageId, value }, '*');
+            pageWindow.postMessage({ messageId, value }, '*');
         },
         USERSCRIPT_getInfo: (args, messageId) => {
             const value = typeof GM_info !== 'undefined' ? JSON.parse(JSON.stringify(GM_info)) : {};
-            window.postMessage({ messageId, value }, '*');
+            pageWindow.postMessage({ messageId, value }, '*');
         },
         USERSCRIPT_instanceVars: (args, messageId) => {
             const [instanceId, key, value] = args;
 
             if (!instanceVars.hasOwnProperty(key)) {
-                window.postMessage({ messageId, value: false }, '*');
+                pageWindow.postMessage({ messageId, value: false }, '*');
                 return;
             }
 
@@ -335,17 +342,22 @@ function exposeViaMessages() {
                 ? instanceVars[key].set(instanceId, value)
                 : instanceVars[key].get(instanceId);
 
-            window.postMessage({ messageId, value: result }, '*');
+            pageWindow.postMessage({ messageId, value: result }, '*');
         },
         USERSCRIPT_checkActive: (args, messageId) => {
-            window.postMessage({ messageId, value: true }, '*');
+            pageWindow.postMessage({ messageId, value: true }, '*');
         }
     };
 
-    window.addEventListener('message', (event) => {
+    function handleMessage(event) {
         const handler = handlers[event.data?.type];
         if(handler) handler(event.data.args, event.data.messageId);
-    });
+    }
+
+    window.addEventListener('message', handleMessage);
+    if (typeof unsafeWindow === 'object' && unsafeWindow !== window) {
+        unsafeWindow.addEventListener('message', handleMessage);
+    }
 
     try {
         const script = document.createElement('script');
@@ -355,12 +367,12 @@ function exposeViaMessages() {
         console.warn('A.C.A.S: Inline script blocked by CSP, using message-based detection');
     }
 
-    if (typeof window.ACAS_STOP_PENDING_MESSAGES === 'function') {
-        window.ACAS_STOP_PENDING_MESSAGES();
+    if (typeof pageWindow.ACAS_STOP_PENDING_MESSAGES === 'function') {
+        pageWindow.ACAS_STOP_PENDING_MESSAGES();
     }
 
     function sendReadyMessage() {
-        window.postMessage({ type: 'ACAS_USERSCRIPT_READY', value: true }, '*');
+        pageWindow.postMessage({ type: 'ACAS_USERSCRIPT_READY', value: true }, '*');
     }
 
     sendReadyMessage();
@@ -371,7 +383,7 @@ function exposeViaMessages() {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', sendReadyMessage);
     }
-    window.addEventListener('load', sendReadyMessage);
+    pageWindow.addEventListener('load', sendReadyMessage);
 }
 
 function exposeViaUnsafe() {
@@ -392,9 +404,11 @@ function exposeViaUnsafe() {
 
     unsafeWindow.isUserscriptActive = true;
     unsafeWindow.USERSCRIPT_PENDING = false;
+    console.log('[ACAS] exposeViaUnsafe completed - USERSCRIPT object set');
 }
 
 if(isRunningOnBackend()) {
+    console.log('[ACAS] Running on backend, unsafeWindow available:', typeof unsafeWindow === 'object');
     if(typeof unsafeWindow === 'object')
         exposeViaUnsafe();
     else

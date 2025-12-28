@@ -3,12 +3,16 @@ const MESSAGE_TIMEOUT = isIOS ? 2000 : 500;
 
 let userscriptPending = false;
 
+console.log('[ACAS Bridge] Loading - USERSCRIPT already defined:', typeof window.USERSCRIPT === 'object', 'isUserscriptActive:', window.isUserscriptActive);
+
 window.addEventListener('message', (event) => {
     if (event.data?.type === 'ACAS_USERSCRIPT_PENDING' && event.data?.value === true) {
+        console.log('[ACAS Bridge] Received ACAS_USERSCRIPT_PENDING');
         userscriptPending = true;
         window.USERSCRIPT_PENDING = true;
     }
     if (event.data?.type === 'ACAS_USERSCRIPT_READY' && event.data?.value === true) {
+        console.log('[ACAS Bridge] Received ACAS_USERSCRIPT_READY');
         window.isUserscriptActive = true;
         userscriptPending = false;
     }

@@ -4,6 +4,8 @@ let userscriptPendingViaMessage = false;
 let MainCommLink = null;
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
+console.log('[ACAS GUI] Initial state - USERSCRIPT:', typeof window.USERSCRIPT, 'isUserscriptActive:', window.isUserscriptActive, 'USERSCRIPT_PENDING:', window.USERSCRIPT_PENDING);
+
 function initCommLink() {
     if (MainCommLink) return;
     if (typeof USERSCRIPT !== 'object') return;
@@ -44,10 +46,12 @@ function initCommLink() {
 
 window.addEventListener('message', (event) => {
     if (event.data?.type === 'ACAS_USERSCRIPT_PENDING' && event.data?.value === true) {
+        console.log('[ACAS GUI] Received ACAS_USERSCRIPT_PENDING message');
         userscriptPendingViaMessage = true;
         window.USERSCRIPT_PENDING = true;
     }
     if (event.data?.type === 'ACAS_USERSCRIPT_READY' && event.data?.value === true) {
+        console.log('[ACAS GUI] Received ACAS_USERSCRIPT_READY message');
         userscriptReadyViaMessage = true;
         userscriptPendingViaMessage = false;
         window.isUserscriptActive = true;
@@ -72,11 +76,14 @@ async function attemptStarting() {
     if(started)
         return;
 
+    console.log('[ACAS GUI] attemptStarting called');
+    console.log('[ACAS GUI] State - USERSCRIPT:', typeof window.USERSCRIPT, 'isUserscriptActive:', window.isUserscriptActive, 'USERSCRIPT_PENDING:', window.USERSCRIPT_PENDING);
+
     const isPending = window.USERSCRIPT_PENDING || userscriptPendingViaMessage || 
                       window.isUserscriptActive === 'pending';
     
     if (isPending && !window.isUserscriptActive) {
-        log.info('Userscript pending, waiting for full initialization...');
+        console.log('[ACAS GUI] Userscript pending, waiting for full initialization...');
         await waitForUserscript(5000);
     }
 
@@ -87,6 +94,8 @@ async function attemptStarting() {
 
     const isUserscriptActive = window.isUserscriptActive === true || userscriptReadyViaMessage;
     let isTosAccepted = false;
+    
+    console.log('[ACAS GUI] Final check - isUserscriptActive:', isUserscriptActive, 'window.isUserscriptActive:', window.isUserscriptActive, 'userscriptReadyViaMessage:', userscriptReadyViaMessage);
     
     if(isUserscriptActive) {
         try {
