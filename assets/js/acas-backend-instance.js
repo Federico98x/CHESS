@@ -1179,8 +1179,15 @@ class BackendInstance {
         if(!this.isEngineNotCalculating(profile)) {
             this.engineStopCalculating(profile, 'Engine was calculating while a new game was started!');
         }
+        
+        if(this.pV[profile]) {
+            this.pV[profile].pendingCalculations = this.pV[profile].pendingCalculations.map(x => ({ ...x, finished: true }));
+            this.pV[profile].pastMoveObjects = [];
+            this.pV[profile].lastCalculatedFen = null;
+        }
 
         this.sendMsgToEngine('ucinewgame', profile); // very important to be before setting variant and so forth
+        this.sendMsgToEngine('isready', profile); // ensure engine processed ucinewgame before continuing
         this.sendMsgToEngine('uci', profile); // to display variants
 
         this.setEngineMultiPV(await this.getConfigValue(this.configKeys.moveSuggestionAmount, profile), profile);
@@ -2314,13 +2321,19 @@ class BackendInstance {
             const errorMessage = e?.message || '';
             const isMemoryError = errorMessage.includes('memory access');
             const isUnreachableError = errorMessage.includes('unreachable') || errorMessage.includes('Aborted');
+            const isIndexOutOfBoundsError = errorMessage.includes('index out of bounds');
             const isHeavyEngine = name === 'stockfish-17-single';
+            const isRestartableError = isMemoryError || isUnreachableError || isIndexOutOfBoundsError;
 
-            if(!isMemoryError && !isUnreachableError) {
+            if(!isRestartableError) {
                 if(!errorMessage.includes('[object ErrorEvent]'))
                     toast.error(`Engine "${name}" crashed due to "${errorMessage}"!`, 5e3);
 
                 return;
+            }
+            
+            if(this.pV[profileName]) {
+                this.pV[profileName].pendingCalculations = this.pV[profileName].pendingCalculations.map(x => ({ ...x, finished: true }));
             }
 
             console.error(`Restarting the engine "${name}" due to the error "${errorMessage}"!`);
